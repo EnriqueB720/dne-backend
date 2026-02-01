@@ -6,11 +6,11 @@ import { JwtModule } from '@nestjs/jwt';
 @Module({
   imports: [
     JwtModule.register({
-      global: true, 
-      secret: process.env.JWT_SECRET
+      global: true,
+      secret: process.env.JWT_SECRET,
     }),
     ConfigModule,
-    PrismaModule
+    PrismaModule,
   ],
   controllers: [],
   providers: [],
