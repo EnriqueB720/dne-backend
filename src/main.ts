@@ -4,6 +4,7 @@ import { ConfigService } from './shared/config/config.service';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { json } from 'express';
 import { config } from 'dotenv';
+import 'reflect-metadata';
 
 config({ path: '.env.local' });
 
