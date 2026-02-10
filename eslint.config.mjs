@@ -36,6 +36,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['off'],
       '@typescript-eslint/indent': 'off',
       '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-unused-expressions': 'error',
       'linebreak-style': ['error', 'windows'],
     },
   },

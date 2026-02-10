@@ -5,6 +5,7 @@ import { LoginOutput, LoginUserInput, SignUpInput } from './dto';
 import { UserSelect } from 'src/api/user/model';
 import { User } from 'src/api/user/model/user.model';
 import { UserService } from 'src/api/user/user.service';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -23,7 +24,7 @@ export class AuthService {
         },
         {
           select: {
-            id: true,
+            userId: true,
             email: true,
             name: true,
             phone: true,
@@ -62,7 +63,7 @@ export class AuthService {
     return {
       access_token: this.jwtService.sign({
         email: user.email,
-        sub: user.id,
+        sub: user.userId,
         expiresIn: '1h',
         expiresAt: new Date(Date.now() + 60 * 60 * 1000),
       }),
@@ -88,6 +89,7 @@ export class AuthService {
       {
         ...signUpInput,
         password,
+        role: Role.SUPPLIER,
       },
       {
         ...select,
@@ -109,7 +111,7 @@ export class AuthService {
         },
         {
           select: {
-            id: true,
+            userId: true,
             email: true,
             name: true,
             phone: true,
@@ -124,7 +126,7 @@ export class AuthService {
       return {
         access_token: this.jwtService.sign({
           email: user.email,
-          sub: user.id,
+          sub: user.userId,
           expiresIn: '1h',
           expiresAt: new Date(Date.now() + 60 * 60 * 1000),
         }),

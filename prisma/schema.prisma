@@ -7,80 +7,80 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User{
-  userId        Int       @id @default(autoincrement()) @map("user_id")
-  email         String    @unique @db.VarChar(100)
-  password      String 
-  name          String    @unique @db.VarChar(100)
-  phone         String    @unique 
-  language      Language  @default(SPANISH)
-  country       String    
-  role          Role      @default(SUPPLIER)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  
-  supplier      Supplier[]
-  subscription  Subscription[]
+model User {
+  userId    Int      @id @default(autoincrement()) @map("user_id")
+  email     String   @unique @db.VarChar(100)
+  password  String
+  name      String   @unique @db.VarChar(100)
+  phone     String   @unique
+  language  Language @default(SPANISH)
+  country   String
+  role      Role     @default(SUPPLIER)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  supplier     Supplier[]
+  subscription Subscription[]
 
   @@map("user")
 }
 
-model Subscription{
-  subscriptionId    Int         @id @default(autoincrement()) @map("subscription_id")
-  userId            Int         @unique @map("user_id")
-  user              User        @relation(fields: [userId], references: [userId])
-  planId            Int         @unique @map("plan_id")
-  plan              PricingPlan @relation(fields: [planId], references: [planId])
-  startDate         DateTime    @map("start_date")
-  endDate           DateTime    @map("end_date")
-  status            String
+model Subscription {
+  subscriptionId Int         @id @default(autoincrement()) @map("subscription_id")
+  userId         Int         @unique @map("user_id")
+  user           User        @relation(fields: [userId], references: [userId])
+  planId         Int         @unique @map("plan_id")
+  plan           PricingPlan @relation(fields: [planId], references: [planId])
+  startDate      DateTime    @map("start_date")
+  endDate        DateTime    @map("end_date")
+  status         String
 
   @@map("subscription")
 }
 
-model PricingPlan{
-  planId           Int        @id @default(autoincrement()) @map("plan_id")
-  planName         String
-  price            Decimal
-  features         String
+model PricingPlan {
+  planId   Int     @id @default(autoincrement()) @map("plan_id")
+  planName String
+  price    Decimal
+  features String
 
-  subscription     Subscription[]
-  @@map("pricing_plan")     
+  subscription Subscription[]
+
+  @@map("pricing_plan")
 }
 
-model Supplier{
-  supplierId    Int       @id @default(autoincrement()) @map("supplier_id")
-  userId        Int       @unique @map("user_id")
-  user          User      @relation(fields: [userId], references: [userId])
-  companyName   String
-  post          Post[]    
+model Supplier {
+  supplierId  Int    @id @default(autoincrement()) @map("supplier_id")
+  userId      Int    @unique @map("user_id")
+  user        User   @relation(fields: [userId], references: [userId])
+  companyName String
+  post        Post[]
 
   @@map("supplier")
 }
 
-model Post{
-  postId        Int           @id @default(autoincrement()) @map("post_id")
-  supplierId    Int           @unique @map("supplier_id")
-  supplier      Supplier      @relation(fields: [supplierId], references: [supplierId])
-  categoryId    Int           @unique @map("category_id")
-  category      Category      @relation(fields: [categoryId], references: [categoryId])
-  title         String        
-  description   String
-  media_url     String
-  price         Decimal
-  createdAt     DateTime  @default(now()) @map("created_at")
+model Post {
+  postId      Int      @id @default(autoincrement()) @map("post_id")
+  supplierId  Int      @unique @map("supplier_id")
+  supplier    Supplier @relation(fields: [supplierId], references: [supplierId])
+  categoryId  Int      @unique @map("category_id")
+  category    Category @relation(fields: [categoryId], references: [categoryId])
+  title       String
+  description String
+  media_url   String
+  price       Decimal
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("post")
 }
 
-model Category{
-  categoryId    Int           @id @default(autoincrement()) @map("category_id")
-  categoryName  String
+model Category {
+  categoryId   Int    @id @default(autoincrement()) @map("category_id")
+  categoryName String
 
-  post          Post[]
-  @@map("category")        
+  post Post[]
+
+  @@map("category")
 }
-
-
 
 enum Language {
   SPANISH

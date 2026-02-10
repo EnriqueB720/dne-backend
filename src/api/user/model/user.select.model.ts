@@ -1,5 +1,5 @@
 interface UserPrismaSelect {
-  id?: boolean;
+  userId?: boolean;
   email?: boolean;
   name?: boolean;
   phone?: boolean;

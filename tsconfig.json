@@ -18,6 +18,11 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "paths": {
+      "@prisma-datasource": ["src/shared/datasource/prisma/index"],
+      "@decorators": ["src/shared/decorators/index"],
+      "@apis": ["src/api/index"]
+    }
   }
 }

@@ -1,4 +1,5 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
+import { Language } from '@prisma/client';
 
 import { IsEmail, MaxLength, MinLength } from 'class-validator';
 
@@ -19,9 +20,6 @@ export class SignUpInput {
 
   @Field()
   phone: string;
-
-  @Field()
-  language: string;
 
   @Field()
   country: string;

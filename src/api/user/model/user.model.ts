@@ -1,12 +1,12 @@
 import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
-import { Language } from '@prisma/client';
+import { Language, Role } from '@prisma/client';
 
 //additional imports for users
 
 @ObjectType()
 export class User {
   @Field(() => Number)
-  id?: number;
+  userId?: number;
 
   @Field()
   email?: string;
@@ -32,4 +32,9 @@ export class User {
 registerEnumType(Language, {
   name: 'Language',
   description: 'Supported languages for users',
+});
+
+registerEnumType(Role, {
+  name: 'Role',
+  description: 'Supported roles for users',
 });
