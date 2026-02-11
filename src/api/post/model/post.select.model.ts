@@ -1,13 +1,13 @@
 
 interface PostPrismaSelect{
-    postId: true;
-    supplier: true; //TODO: link to Supplier model when model is created
-    category: true;
-    title: true;
-    description: true;
-    price: true;
-    createdAt: true;
-    media_url: true;
+    postId?: boolean;
+    supplier?: boolean; //TODO: link to Supplier model when model is created
+    category?: boolean;
+    title?: boolean;
+    description?: boolean;
+    price?: boolean;
+    createdAt?: boolean;
+    media_url?: boolean;
 }
 
 

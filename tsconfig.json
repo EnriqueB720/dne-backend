@@ -16,6 +16,17 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+            "@prisma-datasource":[
+        "src/shared/datasource/prisma/index"
+      ],
+            "@decorators":[
+        "src/shared/decorators/index"
+      ],
+            "@apis":[
+        "src/api/index"
+      ]
+    }
   }
 }

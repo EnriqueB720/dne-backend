@@ -20,7 +20,7 @@ export class Post {
   description: string;
 
   @Field()
-  price: number;
+  price: string;
 
   @Field()
   createdAt: Date;
