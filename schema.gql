@@ -1,0 +1,68 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type User {
+  userId: Float!
+  email: String!
+  name: String!
+  phone: String!
+  language: String!
+  country: String!
+  role: String!
+}
+
+type LoginOutput {
+  access_token: String!
+  expiresAt: DateTime!
+  user: User!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Query {
+  user(where: UserWhereInput!): User!
+  login(data: LoginUserInput!): LoginOutput!
+  refreshUser(data: String!): LoginOutput!
+}
+
+input UserWhereInput {
+  userId: Int
+  email: String
+}
+
+input LoginUserInput {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  createUser(data: UserCreateInput!): User!
+  signup(data: SignUpInput!): User!
+}
+
+input UserCreateInput {
+  email: String!
+  password: String!
+  name: String!
+  phone: String!
+  country: String!
+  role: Role!
+}
+
+"""Supported roles for users"""
+enum Role {
+  ADMIN
+  SUPPLIER
+}
+
+input SignUpInput {
+  email: String!
+  name: String!
+  password: String!
+  phone: String!
+  country: String!
+}
