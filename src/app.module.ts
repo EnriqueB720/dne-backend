@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from './shared/datasource/prisma/prisma.module';
 import { ConfigModule } from 'src/shared/config/config.module';
 import { JwtModule } from '@nestjs/jwt';
-import { UserModule } from './api/user/user.module';
+import { UserModule, SearchModule } from '@apis';
 import { AuthModule } from './shared/auth/auth.module';
 
 @Module({
@@ -14,6 +14,7 @@ import { AuthModule } from './shared/auth/auth.module';
     ConfigModule,
     PrismaModule,
     UserModule,
+    SearchModule,
     AuthModule,
   ],
   controllers: [],

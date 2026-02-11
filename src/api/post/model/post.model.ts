@@ -1,5 +1,4 @@
 import { Field, ObjectType } from '@nestjs/graphql';
-import { Category, Supplier } from '@prisma/client';
 
 
 @ObjectType()
@@ -7,11 +6,11 @@ export class Post {
   @Field()
   postId: number;
 
-  @Field()
-  supplier: Supplier; //TODO: link to Supplier model when model is created
+  // @Field()
+  // supplier: Supplier; //TODO: link to Supplier model when model is created
 
-  @Field()
-  category: Category;
+  // @Field()
+  // category: Category; //TODO: Link to category model when model is created
 
   @Field()
   title: string;

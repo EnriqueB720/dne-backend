@@ -9,20 +9,23 @@ export class SearchService {
   constructor(private readonly prismaService: PrismaService) {}
 
   public async search(
-    { search }: SearchArgs,
+    { query, skip, take }: SearchArgs,
     { select }: SearchSelect,
   ): Promise<Search> {
     const posts = await this.prismaService.post.findMany({
       where: {
         OR: [
-          { title: { contains: search.query, mode: 'insensitive' } },
-          { category: { categoryName: { contains: search.query, mode: 'insensitive' } } },
-          { description: { contains: search.query, mode: 'insensitive' } },
+          { title: { contains: query, mode: 'insensitive' } },
+          { category: { categoryName: { contains: query, mode: 'insensitive' } } },
+          { description: { contains: query, mode: 'insensitive' } },
         ],
       },
       select: select?.post.select,
+      skip,
+      take,
     });
     
+    //Sending price as a string on UI to avoid precision loss when converting from Decimal to Float in JS
     const fixedPricePosts = posts.map(post => {
       return {
         ...post,
