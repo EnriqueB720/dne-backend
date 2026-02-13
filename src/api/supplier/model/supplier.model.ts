@@ -8,12 +8,12 @@ export class Supplier {
     @Field()
     supplierId: number;
 
-    @Field(() => User)
-    user: User
+    @Field(() => User, {nullable: true})
+    user?: User
 
     @Field()
     companyName: string;
 
-    @Field(() => [Post])
-    posts: Post[];
+    @Field(() => [Post], {nullable: true})
+    posts?: Post[];
 }

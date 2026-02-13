@@ -12,8 +12,22 @@ type User {
   role: String!
 }
 
+type Category {
+  categoryId: Float!
+  categoryName: String!
+}
+
+type Supplier {
+  supplierId: Float!
+  user: User
+  companyName: String!
+  posts: [Post!]
+}
+
 type Post {
   postId: Float!
+  supplier: Supplier!
+  category: Category!
   title: String!
   description: String!
   price: String!
