@@ -1,4 +1,6 @@
 import { Field, ObjectType } from '@nestjs/graphql';
+import { Category } from 'src/api/category/model';
+import { Supplier } from 'src/api/supplier/model';
 
 
 @ObjectType()
@@ -6,11 +8,11 @@ export class Post {
   @Field()
   postId: number;
 
-  // @Field()
-  // supplier: Supplier; //TODO: link to Supplier model when model is created
+  @Field(() => Supplier)
+  supplier: Supplier;
 
-  // @Field()
-  // category: Category; //TODO: Link to category model when model is created
+  @Field(() => Category)
+  category: Category;
 
   @Field()
   title: string;
