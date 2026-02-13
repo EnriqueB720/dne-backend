@@ -1,8 +1,10 @@
+import { CategorySelect } from "src/api/category/model";
+import { SupplierSelect } from "src/api/supplier/model";
 
 interface PostPrismaSelect{
     postId?: boolean;
-    supplier?: boolean; //TODO: link to Supplier model when model is created
-    category?: boolean;
+    supplier?: SupplierSelect;
+    category?: CategorySelect;
     title?: boolean;
     description?: boolean;
     price?: boolean;
