@@ -1,5 +1,6 @@
 import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { Language, Role } from '@prisma/client';
+import { Subscription } from 'src/api/subscription/model';
 
 //additional imports for users
 
@@ -27,6 +28,8 @@ export class User {
   role?: string;
 
   //additional models
+  @Field(() => [Subscription], { nullable: true })
+  subscription?: Subscription[];
 }
 
 registerEnumType(Language, {

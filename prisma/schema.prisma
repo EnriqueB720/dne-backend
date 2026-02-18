@@ -28,7 +28,7 @@ model Subscription {
   subscriptionId Int         @id @default(autoincrement()) @map("subscription_id")
   userId         Int         @unique @map("user_id")
   user           User        @relation(fields: [userId], references: [userId])
-  planId         Int         @unique @map("plan_id")
+  planId         Int         @map("plan_id")
   plan           PricingPlan @relation(fields: [planId], references: [planId])
   startDate      DateTime    @map("start_date")
   endDate        DateTime    @map("end_date")
@@ -60,9 +60,9 @@ model Supplier {
 
 model Post {
   postId      Int      @id @default(autoincrement()) @map("post_id")
-  supplierId  Int      @unique @map("supplier_id")
+  supplierId  Int      @map("supplier_id")
   supplier    Supplier @relation(fields: [supplierId], references: [supplierId])
-  categoryId  Int      @unique @map("category_id")
+  categoryId  Int      @map("category_id")
   category    Category @relation(fields: [categoryId], references: [categoryId])
   title       String
   description String
