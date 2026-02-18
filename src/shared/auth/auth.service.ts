@@ -32,6 +32,24 @@ export class AuthService {
             country: true,
             role: true,
             createdAt: true,
+            subscription: {
+              select: {
+                subscriptionId: true,
+                userId: true,
+                planId: true,
+                plan: {
+                  select: {
+                    planId: true,
+                    planName: true,
+                    price: true,
+                    features: true,
+                  },
+                },
+                status: true,
+                startDate: true,
+                endDate: true,
+              },
+            },
           },
         },
       );
@@ -90,6 +108,12 @@ export class AuthService {
         ...signUpInput,
         password,
         role: Role.SUPPLIER,
+        subscription: {
+          planId: 1,
+          status: 'ACTIVE',
+          startDate: new Date(),
+          endDate: new Date(new Date().getDate() + 14),
+        },
       },
       {
         ...select,
@@ -119,6 +143,24 @@ export class AuthService {
             country: true,
             role: true,
             createdAt: true,
+            subscription: {
+              select: {
+                subscriptionId: true,
+                userId: true,
+                planId: true,
+                plan: {
+                  select: {
+                    planId: true,
+                    planName: true,
+                    price: true,
+                    features: true,
+                  },
+                },
+                status: true,
+                startDate: true,
+                endDate: true,
+              },
+            },
           },
         },
       );

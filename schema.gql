@@ -2,6 +2,29 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type Pricing {
+  planId: Float!
+  planName: String!
+  price: String!
+  features: String!
+}
+
+type Subscription {
+  subscriptionId: Float!
+  userId: Float!
+  user: User
+  planId: Float!
+  plan: Pricing
+  startDate: DateTime!
+  endDate: DateTime!
+  status: String!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
 type User {
   userId: Float!
   email: String!
@@ -10,6 +33,7 @@ type User {
   language: String!
   country: String!
   role: String!
+  subscription: [Subscription!]
 }
 
 type LoginOutput {
@@ -18,15 +42,12 @@ type LoginOutput {
   user: User!
 }
 
-"""
-A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
-"""
-scalar DateTime
-
 type Query {
   user(where: UserWhereInput!): User!
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
+  pricing(where: PricingWhereInput!): Pricing!
+  subscription(where: SubscriptionWhereInput!): Subscription!
 }
 
 input UserWhereInput {
@@ -39,9 +60,19 @@ input LoginUserInput {
   password: String!
 }
 
+input PricingWhereInput {
+  planId: Int
+}
+
+input SubscriptionWhereInput {
+  subscriptionId: Int
+}
+
 type Mutation {
   createUser(data: UserCreateInput!): User!
   signup(data: SignUpInput!): User!
+  createPricing(data: PricingCreateInput!): Pricing!
+  createSubscription(data: SubscriptionCreateInput!): Subscription!
 }
 
 input UserCreateInput {
@@ -51,6 +82,7 @@ input UserCreateInput {
   phone: String!
   country: String!
   role: Role!
+  subscription: SubscriptionCreateNestedInput!
 }
 
 """Supported roles for users"""
@@ -59,10 +91,31 @@ enum Role {
   SUPPLIER
 }
 
+input SubscriptionCreateNestedInput {
+  planId: Int!
+  startDate: DateTime!
+  endDate: DateTime!
+  status: String!
+}
+
 input SignUpInput {
   email: String!
   name: String!
   password: String!
   phone: String!
   country: String!
+}
+
+input PricingCreateInput {
+  planName: String!
+  price: Float!
+  features: String!
+}
+
+input SubscriptionCreateInput {
+  userId: Float!
+  planId: Float!
+  startDate: DateTime!
+  endDate: DateTime!
+  status: String!
 }
