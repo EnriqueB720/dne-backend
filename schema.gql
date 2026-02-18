@@ -41,7 +41,7 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 type Search {
-  Post: [Post!]
+  post: [Post!]
 }
 
 type LoginOutput {
@@ -52,7 +52,7 @@ type LoginOutput {
 
 type Query {
   user(where: UserWhereInput!): User!
-  search(query: String, skip: Float!, take: Float!): Search!
+  search(query: String, skip: Float, take: Float): Search!
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
 }

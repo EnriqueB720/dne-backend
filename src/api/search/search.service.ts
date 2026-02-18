@@ -10,19 +10,21 @@ export class SearchService {
 
   public async search(
     { query, skip, take }: SearchArgs,
-    { select }: SearchSelect,
+    { select }: SearchSelect = {},
   ): Promise<Search> {
+    const prismaSelect = select?.post?.select;
+    
     const posts = await this.prismaService.post.findMany({
-      where: {
+      where: query ? {
         OR: [
           { title: { contains: query, mode: 'insensitive' } },
           { category: { categoryName: { contains: query, mode: 'insensitive' } } },
           { description: { contains: query, mode: 'insensitive' } },
         ],
-      },
-      select: select?.post.select,
-      skip,
-      take,
+      } : undefined,
+      select: prismaSelect,
+      skip: skip || 0,
+      take: take || 10,
     });
     
     //Sending price as a string on UI to avoid precision loss when converting from Decimal to Float in JS
@@ -33,6 +35,6 @@ export class SearchService {
       }
     })
     
-    return { Post: fixedPricePosts };
+    return { post: fixedPricePosts };
   }
 }

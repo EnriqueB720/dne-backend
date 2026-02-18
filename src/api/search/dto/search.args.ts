@@ -5,10 +5,10 @@ export class SearchArgs {
   @Field({ nullable: true })
   query?: string;
 
-  @Field()
-  skip: number;
+  @Field({ nullable: true })
+  skip?: number;
 
 
-  @Field()
-  take: number;
+  @Field({ nullable: true })
+  take?: number;
 }
