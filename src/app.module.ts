@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from './shared/datasource/prisma/prisma.module';
 import { ConfigModule } from 'src/shared/config/config.module';
 import { JwtModule } from '@nestjs/jwt';
+import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule } from '@apis';
 import { AuthModule } from './shared/auth/auth.module';
-import { UserModule, PricingModule, SubscriptionModule } from '@apis';
 
 @Module({
   imports: [
@@ -14,7 +14,11 @@ import { UserModule, PricingModule, SubscriptionModule } from '@apis';
     ConfigModule,
     PrismaModule,
     UserModule,
+    SearchModule,
     AuthModule,
+    SupplierModule,
+    PostModule,
+    CategoryModule,
     PricingModule,
     SubscriptionModule,
   ],

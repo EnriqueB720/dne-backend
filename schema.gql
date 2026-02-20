@@ -9,6 +9,17 @@ type Pricing {
   features: String!
 }
 
+type User {
+  userId: Float!
+  email: String!
+  name: String!
+  phone: String!
+  language: String!
+  country: String!
+  role: String!
+  subscription: [Subscription!]
+}
+
 type Subscription {
   subscriptionId: Float!
   userId: Float!
@@ -25,15 +36,31 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
-type User {
-  userId: Float!
-  email: String!
-  name: String!
-  phone: String!
-  language: String!
-  country: String!
-  role: String!
-  subscription: [Subscription!]
+type Category {
+  categoryId: Float!
+  categoryName: String!
+}
+
+type Supplier {
+  supplierId: Float!
+  user: User
+  companyName: String!
+  posts: [Post!]
+}
+
+type Post {
+  postId: Float!
+  supplier: Supplier!
+  category: Category!
+  title: String!
+  description: String!
+  price: String!
+  createdAt: DateTime!
+  media_url: String!
+}
+
+type Search {
+  post: [Post!]
 }
 
 type LoginOutput {
@@ -44,6 +71,7 @@ type LoginOutput {
 
 type Query {
   user(where: UserWhereInput!): User!
+  search(query: String, skip: Float, take: Float): Search!
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
   pricing(where: PricingWhereInput!): Pricing!
