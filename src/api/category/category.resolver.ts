@@ -4,7 +4,7 @@ import { Category } from './model';
 
 @Resolver(() => Category)
 export class CategoryResolver {
-  constructor(private readonly CategoryService: CategoryService) {}
+  constructor(private readonly categoryService: CategoryService) {}
 
 
 }
