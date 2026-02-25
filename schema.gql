@@ -74,6 +74,7 @@ type Query {
   search(query: String, skip: Float, take: Float): Search!
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
+  postsBySupplier(where: PostWhereInput!): [Post!]!
   pricing(where: PricingWhereInput!): Pricing!
   subscription(where: SubscriptionWhereInput!): Subscription!
 }
@@ -86,6 +87,12 @@ input UserWhereInput {
 input LoginUserInput {
   email: String!
   password: String!
+}
+
+input PostWhereInput {
+  postId: Int
+  supplierId: Int
+  categoryId: Int
 }
 
 input PricingWhereInput {
