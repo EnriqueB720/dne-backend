@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { PrismaService } from '@prisma-datasource';
 import { PostArgs, PostCreateInput } from './dto';
@@ -20,26 +20,46 @@ export class PostService {
       select,
     });
 
-    return {
-      ...post,
-      price: post.price.toString(),
-    };
+    return this.parsePostPrice([post]) as Post;
   }
 
   public async findPostBySupplier(
     { where }: PostArgs,
     { select }: PostSelect,
   ): Promise<Post[]> {
-    const post = await this.prismaService.post.findMany({
+    const posts = await this.prismaService.post.findMany({
       where,
       select,
     });
 
-    return post.map((post) => {
+    return this.parsePostPrice(posts) as Post[] || [];
+  }
+
+  public async findPost(
+    { whereUnique }: PostArgs,
+    { select }: PostSelect,
+  ): Promise<Post> {
+    const post = await this.prismaService.post.findUnique({
+      where: whereUnique,
+      select,
+    })
+
+    if(!post){
+      throw new BadRequestException("No post found with the given unique identifier");
+    }
+
+    return this.parsePostPrice([post]) as Post;
+  }
+
+  public parsePostPrice(posts: any[]): Post[] | Post{
+    let parsedPricePosts = posts.map((post) => {
       return {
         ...post,
         price: post.price.toString(),
       };
-    }) || [];
+    });
+
+    return parsedPricePosts.length === 1 ? parsedPricePosts[0] : parsedPricePosts;
   }
+  
 }

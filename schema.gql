@@ -72,9 +72,10 @@ type LoginOutput {
 type Query {
   user(where: UserWhereInput!): User!
   search(query: String, skip: Float, take: Float): Search!
+  postsBySupplier(where: PostWhereInput, whereUnique: PostWhereUniqueInput): [Post!]!
+  post(where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
-  postsBySupplier(where: PostWhereInput!): [Post!]!
   pricing(where: PricingWhereInput!): Pricing!
   subscription(where: SubscriptionWhereInput!): Subscription!
 }
@@ -84,15 +85,19 @@ input UserWhereInput {
   email: String
 }
 
-input LoginUserInput {
-  email: String!
-  password: String!
-}
-
 input PostWhereInput {
   postId: Int
   supplierId: Int
   categoryId: Int
+}
+
+input PostWhereUniqueInput {
+  postId: Int!
+}
+
+input LoginUserInput {
+  email: String!
+  password: String!
 }
 
 input PricingWhereInput {
@@ -105,8 +110,8 @@ input SubscriptionWhereInput {
 
 type Mutation {
   createUser(data: UserCreateInput!): User!
-  signup(data: SignUpInput!): User!
   createPost(data: PostCreateInput!): Post!
+  signup(data: SignUpInput!): User!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): Subscription!
 }
@@ -134,14 +139,6 @@ input SubscriptionCreateNestedInput {
   status: String!
 }
 
-input SignUpInput {
-  email: String!
-  name: String!
-  password: String!
-  phone: String!
-  country: String!
-}
-
 input PostCreateInput {
   title: String!
   categoryId: Int!
@@ -149,6 +146,14 @@ input PostCreateInput {
   description: String!
   price: Int!
   mediaUrl: String!
+}
+
+input SignUpInput {
+  email: String!
+  name: String!
+  password: String!
+  phone: String!
+  country: String!
 }
 
 input PricingCreateInput {

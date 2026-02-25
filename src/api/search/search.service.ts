@@ -3,10 +3,14 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@prisma-datasource';
 import { Search, SearchSelect } from './model';
 import { SearchArgs } from './dto';
+import { PostService } from '../post/post.service';
+import { Post } from '../post/model';
 
 @Injectable()
 export class SearchService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService,
+              private readonly postService: PostService
+  ) {}
 
   public async search(
     { query, skip, take }: SearchArgs,
@@ -28,12 +32,7 @@ export class SearchService {
     });
     
     //Sending price as a string on UI to avoid precision loss when converting from Decimal to Float in JS
-    const fixedPricePosts = posts.map(post => {
-      return {
-        ...post,
-        price: post.price.toString()
-      }
-    })
+    const fixedPricePosts = this.postService.parsePostPrice(posts) as Post[];
     
     return { post: fixedPricePosts };
   }
