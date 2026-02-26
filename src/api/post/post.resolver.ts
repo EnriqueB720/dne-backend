@@ -16,12 +16,19 @@ export class PostResolver {
     return await this.postService.create(data, fields);
   }
 
-
-	@Query(() => [Post])
+  @Query(() => [Post])
   public async postsBySupplier(
-   	@Args() args: PostArgs,
+    @Args() args: PostArgs,
     @GraphQLFields() { fields }: IGraphQLFields<PostSelect>,
   ): Promise<Post[]> {
     return await this.postService.findPostBySupplier(args, fields);
+  }
+
+  @Query(() => Post)
+  public async post(
+    @Args() args: PostArgs,
+    @GraphQLFields() { fields }: IGraphQLFields<PostSelect>,
+  ): Promise<Post> {
+    return await this.postService.findPost(args, fields);
   }
 }
