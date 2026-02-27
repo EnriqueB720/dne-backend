@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { PrismaService } from '@prisma-datasource';
-import { PostArgs, PostCreateInput } from './dto';
+import { PostArgs, PostCreateInput, PostUpdateInput } from './dto';
 import { Post, PostSelect } from './model';
 
 @Injectable()
@@ -32,7 +32,7 @@ export class PostService {
       select,
     });
 
-    return this.parsePostPrice(posts) as Post[] || [];
+    return (this.parsePostPrice(posts) as Post[]) || [];
   }
 
   public async findPost(
@@ -42,16 +42,38 @@ export class PostService {
     const post = await this.prismaService.post.findUnique({
       where: whereUnique,
       select,
-    })
+    });
 
-    if(!post){
-      throw new BadRequestException("No post found with the given unique identifier");
+    if (!post) {
+      throw new BadRequestException(
+        'No post found with the given unique identifier',
+      );
     }
 
     return this.parsePostPrice([post]) as Post;
   }
 
-  public parsePostPrice(posts: any[]): Post[] | Post{
+  public async updatePosts(
+    data: PostUpdateInput,
+    { whereUnique }: PostArgs,
+    { select }: PostSelect,
+  ): Promise<Post> {
+    const post = await this.prismaService.post.update({
+      where: whereUnique,
+      data,
+      select,
+    });
+
+    return this.parsePostPrice([post]) as Post;
+  }
+
+  /**
+   * Receives an array of post objects and converts their price from Decimal to string.
+   *
+   * @param {any[]} posts - The array of post objects to process.
+   * @returns {Post[] | Post} The processed posts with price as string.
+   */
+  public parsePostPrice(posts: any[]): Post[] | Post {
     let parsedPricePosts = posts.map((post) => {
       return {
         ...post,
@@ -59,7 +81,8 @@ export class PostService {
       };
     });
 
-    return parsedPricePosts.length === 1 ? parsedPricePosts[0] : parsedPricePosts;
+    return parsedPricePosts.length === 1
+      ? parsedPricePosts[0]
+      : parsedPricePosts;
   }
-  
 }
