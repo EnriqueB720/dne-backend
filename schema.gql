@@ -111,6 +111,7 @@ input SubscriptionWhereInput {
 type Mutation {
   createUser(data: UserCreateInput!): User!
   createPost(data: PostCreateInput!): Post!
+  updatePost(data: PostUpdateInput!, where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
   signup(data: SignUpInput!): User!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): Subscription!
@@ -146,6 +147,13 @@ input PostCreateInput {
   description: String!
   price: Int!
   mediaUrl: String!
+}
+
+input PostUpdateInput {
+  title: String
+  description: String
+  price: Int
+  mediaUrl: String
 }
 
 input SignUpInput {
