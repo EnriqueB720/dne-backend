@@ -1,2 +1,2 @@
-export * from "./category.model";
-export * from "./category.select.model";
+export * from './category.model';
+export * from './category.select.model';
