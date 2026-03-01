@@ -1,2 +1,2 @@
-export * from "./supplier.model";
-export * from "./supplier.select.model";
+export * from './supplier.model';
+export * from './supplier.select.model';
