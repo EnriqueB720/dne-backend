@@ -17,6 +17,7 @@ type User {
   language: String!
   country: String!
   role: String!
+  profilePicture: String!
   subscription: [Subscription!]
 }
 
@@ -124,6 +125,7 @@ input UserCreateInput {
   phone: String!
   country: String!
   role: Role!
+  profilePicture: String
   subscription: SubscriptionCreateNestedInput!
 }
 
@@ -162,6 +164,7 @@ input SignUpInput {
   password: String!
   phone: String!
   country: String!
+  profilePicture: String
 }
 
 input PricingCreateInput {

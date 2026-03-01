@@ -31,6 +31,7 @@ export class AuthService {
             language: true,
             country: true,
             role: true,
+            profilePicture: true,
             createdAt: true,
             subscription: {
               select: {
@@ -142,6 +143,7 @@ export class AuthService {
             language: true,
             country: true,
             role: true,
+            profilePicture: true,
             createdAt: true,
             subscription: {
               select: {

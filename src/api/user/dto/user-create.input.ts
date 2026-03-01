@@ -29,6 +29,9 @@ export class UserCreateInput {
   @Field(() => Role)
   role: Role;
 
+  @Field({ nullable: true })
+  profilePicture?: string;
+
   @Field(() => SubscriptionCreateNestedInput)
   subscription: SubscriptionCreateNestedInput;
 }
