@@ -76,6 +76,7 @@ type Query {
   post(where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
+  category(where: CategoryWhereInput!): Category!
   pricing(where: PricingWhereInput!): Pricing!
   subscription(where: SubscriptionWhereInput!): Subscription!
 }
@@ -100,6 +101,10 @@ input LoginUserInput {
   password: String!
 }
 
+input CategoryWhereInput {
+  categoryId: Int
+}
+
 input PricingWhereInput {
   planId: Int
 }
@@ -113,6 +118,7 @@ type Mutation {
   createPost(data: PostCreateInput!): Post!
   updatePost(data: PostUpdateInput!, where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
   signup(data: SignUpInput!): User!
+  createCategory(data: CategoryCreateInput!): Category!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): Subscription!
 }
@@ -162,6 +168,10 @@ input SignUpInput {
   password: String!
   phone: String!
   country: String!
+}
+
+input CategoryCreateInput {
+  categoryName: String!
 }
 
 input PricingCreateInput {
