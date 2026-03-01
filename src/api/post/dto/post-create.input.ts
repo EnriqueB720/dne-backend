@@ -1,9 +1,7 @@
-import { InputType, Field, Int } from "@nestjs/graphql";
-
+import { InputType, Field, Int } from '@nestjs/graphql';
 
 @InputType()
 export class PostCreateInput {
-
   @Field()
   title: string;
 
@@ -21,5 +19,4 @@ export class PostCreateInput {
 
   @Field()
   mediaUrl: string;
-
 }

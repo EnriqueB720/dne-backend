@@ -2,7 +2,6 @@ import { Field, ObjectType } from '@nestjs/graphql';
 import { Category } from 'src/api/category/model';
 import { Supplier } from 'src/api/supplier/model';
 
-
 @ObjectType()
 export class Post {
   @Field()

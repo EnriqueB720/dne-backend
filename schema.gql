@@ -112,6 +112,7 @@ type Mutation {
   createUser(data: UserCreateInput!): User!
   createPost(data: PostCreateInput!): Post!
   updatePost(data: PostUpdateInput!, where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
+  deletePost(whereUnique: PostWhereUniqueInput!): Boolean!
   signup(data: SignUpInput!): User!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): Subscription!
