@@ -2,7 +2,12 @@ import { Resolver, Query, Args, Mutation } from '@nestjs/graphql';
 import { PostService } from './post.service';
 import { GraphQLFields, IGraphQLFields } from '@decorators';
 import { Post, PostSelect } from './model';
-import { PostCreateInput, PostArgs, PostUpdateInput } from './dto';
+import {
+  PostCreateInput,
+  PostArgs,
+  PostUpdateInput,
+  PostWhereUniqueInput,
+} from './dto';
 
 @Resolver(() => Post)
 export class PostResolver {
@@ -39,5 +44,13 @@ export class PostResolver {
     @GraphQLFields() { fields }: IGraphQLFields<PostSelect>,
   ): Promise<Post> {
     return await this.postService.updatePosts(data, args, fields);
+  }
+
+  @Mutation(() => Boolean)
+  async deletePost(
+    @Args('whereUnique') whereUnique: PostWhereUniqueInput,
+  ): Promise<boolean> {
+    await this.postService.deletePosts(whereUnique);
+    return true;
   }
 }

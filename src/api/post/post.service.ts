@@ -1,7 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { PrismaService } from '@prisma-datasource';
-import { PostArgs, PostCreateInput, PostUpdateInput } from './dto';
+import {
+  PostArgs,
+  PostCreateInput,
+  PostUpdateInput,
+  PostWhereUniqueInput,
+} from './dto';
 import { Post, PostSelect } from './model';
 
 @Injectable()
@@ -67,6 +72,12 @@ export class PostService {
     return this.parsePostPrice([post]) as Post;
   }
 
+  public async deletePosts(whereUnique: PostWhereUniqueInput) {
+    return await this.prismaService.post.delete({
+      where: whereUnique,
+    });
+  }
+
   /**
    * Receives an array of post objects and converts their price from Decimal to string.
    *
@@ -74,7 +85,7 @@ export class PostService {
    * @returns {Post[] | Post} The processed posts with price as string.
    */
   public parsePostPrice(posts: any[]): Post[] | Post {
-    let parsedPricePosts = posts.map((post) => {
+    const parsedPricePosts = posts.map((post) => {
       return {
         ...post,
         price: post.price.toString(),

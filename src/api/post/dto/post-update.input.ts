@@ -1,9 +1,7 @@
-import { InputType, Field, Int } from "@nestjs/graphql";
-
+import { InputType, Field, Int } from '@nestjs/graphql';
 
 @InputType()
 export class PostUpdateInput {
-
   @Field({ nullable: true })
   title?: string;
 
@@ -15,5 +13,4 @@ export class PostUpdateInput {
 
   @Field({ nullable: true })
   mediaUrl?: string;
-
 }
