@@ -8,6 +8,7 @@ interface UserPrismaSelect {
   language?: boolean;
   country?: boolean;
   role?: boolean;
+  profilePicture?: boolean;
   createdAt?: boolean;
   subscription?: SubscriptionSelect;
 }
