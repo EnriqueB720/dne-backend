@@ -27,7 +27,7 @@ export class UserService {
   }
 
   public async create(
-    { subscription, ...data }: UserCreateInput,
+    { subscription, companyName, ...data }: UserCreateInput,
     { select }: UserSelect,
   ): Promise<User> {
     return await this.prismaService.user.create({
@@ -35,6 +35,11 @@ export class UserService {
         ...data,
         subscription: {
           create: [subscription],
+        },
+        supplier: {
+          create: {
+            companyName: companyName,
+          },
         },
       },
       select,

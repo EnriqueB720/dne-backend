@@ -103,10 +103,13 @@ export class AuthService {
 
     const password = await bcrypt.hash(signUpInput.password, 10);
 
+    const { companyName, ...userData } = signUpInput;
+
     return this.userService.create(
       {
-        ...signUpInput,
+        ...userData,
         password,
+        companyName, //used for supplier creation
         role: Role.SUPPLIER,
         subscription: {
           planId: 1,

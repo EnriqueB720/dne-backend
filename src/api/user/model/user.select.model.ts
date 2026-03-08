@@ -1,4 +1,5 @@
 import { SubscriptionSelect } from 'src/api/subscription/model';
+import { SupplierSelect } from 'src/api/supplier/model';
 
 interface UserPrismaSelect {
   userId?: boolean;
@@ -10,6 +11,7 @@ interface UserPrismaSelect {
   role?: boolean;
   createdAt?: boolean;
   subscription?: SubscriptionSelect;
+  supplier?: SupplierSelect;
 }
 
 export interface UserSelect {
