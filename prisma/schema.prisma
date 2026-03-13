@@ -27,7 +27,7 @@ model User {
 
 model Subscription {
   subscriptionId Int         @id @default(autoincrement()) @map("subscription_id")
-  userId         Int         @unique @map("user_id")
+  userId         Int         @map("user_id")
   user           User        @relation(fields: [userId], references: [userId])
   planId         Int         @map("plan_id")
   plan           PricingPlan @relation(fields: [planId], references: [planId])
@@ -69,6 +69,7 @@ model Post {
   description String
   media_url   String
   price       Decimal
+  profilePicture String?
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("post")
