@@ -5,11 +5,13 @@ import { AuthService } from './auth.service';
 import { AuthResolver } from './auth.resolver';
 import { JwtStrategy, LocalStrategy } from './strategy';
 import { UserModule } from '../../api/user/user.module';
+import { SupplierModule } from '../../api/supplier/supplier.module';
 import { ConfigModule } from '../config/config.module';
 
 @Module({
   imports: [
     UserModule,
+    SupplierModule,
     PassportModule,
     ConfigModule,
     JwtModule.register({

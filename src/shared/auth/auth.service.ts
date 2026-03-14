@@ -5,6 +5,7 @@ import { LoginOutput, LoginUserInput, SignUpInput } from './dto';
 import { UserSelect } from 'src/api/user/model';
 import { User } from 'src/api/user/model/user.model';
 import { UserService } from 'src/api/user/user.service';
+import { SupplierService } from 'src/api/supplier/supplier.service';
 import { Role } from '@prisma/client';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class AuthService {
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
+    private readonly supplierService: SupplierService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -99,6 +101,14 @@ export class AuthService {
 
     if (userPassword) {
       throw new Error('User already exists!');
+    }
+
+    const companyExists = await this.supplierService.companyNameExists(
+      signUpInput.companyName,
+    );
+
+    if (companyExists) {
+      throw new Error('Company name already exists!');
     }
 
     const password = await bcrypt.hash(signUpInput.password, 10);

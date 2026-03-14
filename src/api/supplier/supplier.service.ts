@@ -35,4 +35,17 @@ export class SupplierService {
       },
     });
   }
+
+  async companyNameExists(companyName: string): Promise<boolean> {
+    const supplier = await this.prismaService.supplier.findFirst({
+      where: {
+        companyName: { contains: companyName, mode: 'insensitive' },
+      },
+      select: {
+        supplierId: true,
+      },
+    });
+
+    return !!supplier;
+  }
 }
