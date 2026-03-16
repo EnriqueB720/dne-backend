@@ -29,6 +29,9 @@ export class UserCreateInput {
   @Field(() => Role)
   role: Role;
 
+  @Field()
+  companyName: string;
+  
   @Field({ nullable: true })
   profilePicture?: string;
 

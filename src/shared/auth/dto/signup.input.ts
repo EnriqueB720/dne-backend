@@ -24,6 +24,9 @@ export class SignUpInput {
   @Field()
   country: string;
 
+  @Field()
+  companyName: string;
+  
   @IsOptional()
   @Field({ nullable: true })
   profilePicture?: string;
