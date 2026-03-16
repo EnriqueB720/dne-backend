@@ -31,6 +31,9 @@ export class UserCreateInput {
 
   @Field()
   companyName: string;
+  
+  @Field({ nullable: true })
+  profilePicture?: string;
 
   @Field(() => SubscriptionCreateNestedInput)
   subscription: SubscriptionCreateNestedInput;

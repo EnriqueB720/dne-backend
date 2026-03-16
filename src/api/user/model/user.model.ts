@@ -28,6 +28,9 @@ export class User {
   @Field()
   role?: string;
 
+  @Field()
+  profilePicture?: string;
+
   //additional models
   @Field(() => [Subscription], { nullable: true })
   subscription?: Subscription[];
