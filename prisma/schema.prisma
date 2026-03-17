@@ -69,7 +69,6 @@ model Post {
   description String
   media_url   String
   price       Decimal
-  profilePicture String?
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("post")
