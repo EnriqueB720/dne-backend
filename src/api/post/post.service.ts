@@ -85,6 +85,10 @@ export class PostService {
    * @returns {Post[] | Post} The processed posts with price as string.
    */
   public parsePostPrice(posts: any[]): Post[] | Post {
+    if(posts[0]?.price === undefined){
+      if(posts.length === 1) return posts[0];
+      return posts;
+    }
     const parsedPricePosts = posts.map((post) => {
       return {
         ...post,
