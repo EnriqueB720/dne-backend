@@ -9,44 +9,9 @@ type Pricing {
   features: String!
 }
 
-type User {
-  userId: Float!
-  email: String!
-  name: String!
-  phone: String!
-  language: String!
-  country: String!
-  role: String!
-  profilePicture: String!
-  subscription: [Subscription!]
-}
-
-type Subscription {
-  subscriptionId: Float!
-  userId: Float!
-  user: User
-  planId: Float!
-  plan: Pricing
-  startDate: DateTime!
-  endDate: DateTime!
-  status: String!
-}
-
-"""
-A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
-"""
-scalar DateTime
-
 type Category {
   categoryId: Float!
   categoryName: String!
-}
-
-type Supplier {
-  supplierId: Float!
-  user: User
-  companyName: String!
-  posts: [Post!]
 }
 
 type Post {
@@ -58,6 +23,42 @@ type Post {
   price: String!
   createdAt: DateTime!
   media_url: String!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Supplier {
+  supplierId: Float!
+  user: User
+  companyName: String!
+  posts: [Post!]
+}
+
+type User {
+  userId: Float!
+  email: String!
+  name: String!
+  phone: String!
+  language: String!
+  country: String!
+  role: String!
+  profilePicture: String!
+  subscription: [Subscription!]
+  supplier: [Supplier!]
+}
+
+type Subscription {
+  subscriptionId: Float!
+  userId: Float!
+  user: User
+  planId: Float!
+  plan: Pricing
+  startDate: DateTime!
+  endDate: DateTime!
+  status: String!
 }
 
 type Search {
@@ -77,6 +78,7 @@ type Query {
   post(where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
+  supplier(where: SupplierWhereInput!): Supplier!
   category(where: CategoryWhereInput!): Category!
   pricing(where: PricingWhereInput!): Pricing!
   subscription(where: SubscriptionWhereInput!): Subscription!
@@ -102,6 +104,10 @@ input LoginUserInput {
   password: String!
 }
 
+input SupplierWhereInput {
+  supplierId: Int
+}
+
 input CategoryWhereInput {
   categoryId: Int
 }
@@ -120,6 +126,7 @@ type Mutation {
   updatePost(data: PostUpdateInput!, where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
   deletePost(whereUnique: PostWhereUniqueInput!): Boolean!
   signup(data: SignUpInput!): User!
+  createSupplier(data: SupplierCreateInput!): Supplier!
   createCategory(data: CategoryCreateInput!): Category!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): Subscription!
@@ -132,6 +139,7 @@ input UserCreateInput {
   phone: String!
   country: String!
   role: Role!
+  companyName: String!
   profilePicture: String
   subscription: SubscriptionCreateNestedInput!
 }
@@ -171,7 +179,13 @@ input SignUpInput {
   password: String!
   phone: String!
   country: String!
+  companyName: String!
   profilePicture: String
+}
+
+input SupplierCreateInput {
+  companyName: String!
+  userId: Float
 }
 
 input CategoryCreateInput {
