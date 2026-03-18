@@ -63,7 +63,7 @@ export class GoogleDriveService {
       // Update post's media URL
     await this.prismaService.post.update({
         where: { postId: userOrPostId },
-        data: { profilePicture: `https://drive.google.com/uc?export=view&id=${fileId}` },
+        data: { media_url: `https://drive.google.com/uc?export=view&id=${fileId}` },
       });
     }
 
