@@ -42,12 +42,24 @@ type User {
   email: String!
   name: String!
   phone: String!
-  language: String!
+  language: Language!
   country: String!
-  role: String!
+  role: Role!
   profilePicture: String!
   subscription: [Subscription!]
   supplier: [Supplier!]
+}
+
+"""Supported languages for users"""
+enum Language {
+  SPANISH
+  ENGLISH
+}
+
+"""Supported roles for users"""
+enum Role {
+  ADMIN
+  SUPPLIER
 }
 
 type Subscription {
@@ -142,12 +154,6 @@ input UserCreateInput {
   companyName: String!
   profilePicture: String
   subscription: SubscriptionCreateNestedInput!
-}
-
-"""Supported roles for users"""
-enum Role {
-  ADMIN
-  SUPPLIER
 }
 
 input SubscriptionCreateNestedInput {

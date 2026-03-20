@@ -19,14 +19,14 @@ export class User {
   @Field()
   phone?: string;
 
-  @Field()
-  language?: string;
+  @Field(() => Language)
+  language?: Language;
 
   @Field()
   country?: string;
 
-  @Field()
-  role?: string;
+  @Field(() => Role)
+  role?: Role;
 
   @Field()
   profilePicture?: string;
