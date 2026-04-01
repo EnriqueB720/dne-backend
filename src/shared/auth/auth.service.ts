@@ -148,7 +148,7 @@ export class AuthService {
           planId: 1,
           status: 'ACTIVE',
           startDate: new Date(),
-          endDate: new Date(new Date().getDate() + 14),
+          endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         },
       },
       {
