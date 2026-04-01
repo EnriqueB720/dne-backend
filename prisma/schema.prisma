@@ -54,7 +54,7 @@ model Supplier {
   userId      Int    @unique @map("user_id")
   user        User   @relation(fields: [userId], references: [userId])
   companyName String
-  post        Post[]
+  posts       Post[]
 
   @@map("supplier")
 }
@@ -78,7 +78,7 @@ model Category {
   categoryId   Int    @id @default(autoincrement()) @map("category_id")
   categoryName String
 
-  post Post[]
+  posts Post[]
 
   @@map("category")
 }

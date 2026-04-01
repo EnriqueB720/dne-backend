@@ -28,7 +28,7 @@ export class User {
   @Field(() => Role)
   role?: Role;
 
-  @Field()
+  @Field(() => String, { nullable: true })
   profilePicture?: string;
 
   //additional models

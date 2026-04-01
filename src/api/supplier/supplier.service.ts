@@ -3,37 +3,45 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@prisma-datasource';
 import { SupplierArgs, SupplierCreateInput } from './dto';
 import { Supplier, SupplierSelect } from './model';
+import { PostService } from '../post/post.service';
 
 @Injectable()
 export class SupplierService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly postService: PostService,
+  ) {}
 
   public async findOne(
     { where }: SupplierArgs,
     { select }: SupplierSelect,
   ): Promise<Supplier> {
-    return await this.prismaService.supplier.findFirst({
+    const supplier: any = await this.prismaService.supplier.findFirst({
       where,
-      select: {
-        ...select,
-        user: true,
-        post: true,
-      },
+      select
     });
+
+    if (supplier?.posts) {
+      supplier.posts = this.postService.parsePostPrice(supplier.posts);
+    }
+
+    return supplier;
   }
 
   public async create(
     data: SupplierCreateInput,
     { select }: SupplierSelect,
   ): Promise<Supplier> {
-    return await this.prismaService.supplier.create({
+    const supplier: any = await this.prismaService.supplier.create({
       data,
-      select: {
-        ...select,
-        user: true,
-        post: true,
-      },
+      select
     });
+
+    if (supplier?.posts) {
+      supplier.posts = this.postService.parsePostPrice(supplier.posts);
+    }
+
+    return supplier;
   }
 
   async companyNameExists(companyName: string): Promise<boolean> {

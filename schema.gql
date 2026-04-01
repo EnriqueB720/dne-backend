@@ -45,7 +45,7 @@ type User {
   language: Language!
   country: String!
   role: Role!
-  profilePicture: String!
+  profilePicture: String
   subscription: [Subscription!]
   supplier: [Supplier!]
 }

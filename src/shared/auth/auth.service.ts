@@ -53,6 +53,28 @@ export class AuthService {
                 endDate: true,
               },
             },
+            supplier: {
+              select: {
+                supplierId: true,
+                companyName: true,
+                posts: {
+                  select: {
+                    postId: true,
+                    title: true,
+                    description: true,
+                    media_url: true,
+                    price: true,
+                    createdAt: true,
+                    category: {
+                      select: {
+                        categoryId: true,
+                        categoryName: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       );
@@ -126,7 +148,7 @@ export class AuthService {
           planId: 1,
           status: 'ACTIVE',
           startDate: new Date(),
-          endDate: new Date(new Date().getDate() + 14),
+          endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         },
       },
       {
@@ -174,6 +196,28 @@ export class AuthService {
                 status: true,
                 startDate: true,
                 endDate: true,
+              },
+            },
+            supplier: {
+              select: {
+                supplierId: true,
+                companyName: true,
+                posts: {
+                  select: {
+                    postId: true,
+                    title: true,
+                    description: true,
+                    media_url: true,
+                    price: true,
+                    createdAt: true,
+                    category: {
+                      select: {
+                        categoryId: true,
+                        categoryName: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
