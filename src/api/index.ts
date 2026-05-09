@@ -5,6 +5,7 @@ import { SearchModule } from './search/search.module';
 import { SupplierModule } from './supplier/supplier.module';
 import { PostModule } from './post/post.module';
 import { CategoryModule } from './category/category.module';
+import { ChatModule } from './chat/chat.module';
 
 
 
@@ -14,6 +15,7 @@ export {
   SupplierModule,
   PostModule,
   CategoryModule,
-  SubscriptionModule, 
-  PricingModule
+  SubscriptionModule,
+  PricingModule,
+  ChatModule
 }

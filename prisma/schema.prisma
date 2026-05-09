@@ -83,6 +83,36 @@ model Category {
   @@map("category")
 }
 
+model Conversation {
+  conversationId String    @id @default(uuid()) @map("conversation_id")
+  deviceId       String    @map("device_id") @db.VarChar(128)
+  title          String    @db.VarChar(255)
+  model          String    @db.VarChar(64)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  messages Message[]
+
+  @@index([deviceId])
+  @@map("conversation")
+}
+
+model Message {
+  messageId      String       @id @default(uuid()) @map("message_id")
+  conversationId String       @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [conversationId], onDelete: Cascade)
+  role           String       @db.VarChar(16)
+  content        String       @db.Text
+  model          String?      @db.VarChar(64)
+  inputTokens    Int?         @map("input_tokens")
+  outputTokens   Int?         @map("output_tokens")
+  providersJson  String?      @map("providers_json") @db.Text
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([conversationId])
+  @@map("message")
+}
+
 enum Language {
   SPANISH
   ENGLISH
