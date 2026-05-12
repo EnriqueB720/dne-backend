@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// =====================================================================
+// IDENTITY DOMAIN
+// =====================================================================
+
 model User {
   userId         Int      @id @default(autoincrement()) @map("user_id")
   email          String   @unique @db.VarChar(100)
@@ -17,13 +21,83 @@ model User {
   country        String
   role           Role     @default(SUPPLIER)
   profilePicture String?
-  createdAt      DateTime @default(now()) @map("created_at")
 
-  supplier     Supplier[]
-  subscription Subscription[]
+  // Additive identity extensions
+  firstName       String?   @map("first_name")
+  lastName        String?   @map("last_name")
+  avatarUrl       String?   @map("avatar_url")
+  timezone        String?   @default("America/Costa_Rica")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  phoneVerifiedAt DateTime? @map("phone_verified_at")
+  lastLoginAt     DateTime? @map("last_login_at")
 
+  // Multi-role flags (additive to existing `role` enum)
+  isCustomer Boolean @default(false) @map("is_customer")
+  isSupplier Boolean @default(true) @map("is_supplier")
+  isAdmin    Boolean @default(false) @map("is_admin")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  supplier        Supplier[]
+  subscription    Subscription[]
+  customer        Customer?
+  adminProfile    Admin?
+  notifications   Notification[]
+  searchLogs      SearchLog[]
+
+  @@index([email])
+  @@index([phone])
   @@map("user")
 }
+
+model Customer {
+  customerId Int  @id @default(autoincrement()) @map("customer_id")
+  userId     Int  @unique @map("user_id")
+  user       User @relation(fields: [userId], references: [userId])
+
+  defaultCity    String?  @map("default_city")
+  defaultAddress String?  @map("default_address")
+  defaultLat     Decimal? @map("default_lat") @db.Decimal(10, 7)
+  defaultLng     Decimal? @map("default_lng") @db.Decimal(10, 7)
+
+  preferredLanguage Language? @map("preferred_language")
+  marketingOptIn    Boolean   @default(false) @map("marketing_opt_in")
+
+  totalRequests Int     @default(0) @map("total_requests")
+  totalBookings Int     @default(0) @map("total_bookings")
+  lifetimeValue Decimal @default(0) @map("lifetime_value") @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  requests       Request[]
+  bookings       Booking[]
+  conversations  Conversation[]
+  favorites      Favorite[]
+  reviewsWritten Review[]       @relation("CustomerReviews")
+
+  @@map("customer")
+}
+
+model Admin {
+  adminId Int  @id @default(autoincrement()) @map("admin_id")
+  userId  Int  @unique @map("user_id")
+  user    User @relation(fields: [userId], references: [userId])
+
+  adminRole   AdminRole @default(SUPPORT) @map("admin_role")
+  permissions Json      @default("[]")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("admin")
+}
+
+// =====================================================================
+// SUBSCRIPTION / PRICING
+// =====================================================================
 
 model Subscription {
   subscriptionId Int         @id @default(autoincrement()) @map("subscription_id")
@@ -35,6 +109,15 @@ model Subscription {
   endDate        DateTime    @map("end_date")
   status         String
 
+  cancelAtPeriodEnd Boolean   @default(false) @map("cancel_at_period_end")
+  externalRef       String?   @map("external_ref")
+  createdAt         DateTime? @default(now()) @map("created_at")
+  updatedAt         DateTime? @updatedAt @map("updated_at")
+  cancelledAt       DateTime? @map("cancelled_at")
+
+  suppliers Supplier[]
+  payments  Payment[]
+
   @@map("subscription")
 }
 
@@ -44,21 +127,98 @@ model PricingPlan {
   price    Decimal
   features String
 
+  // Additive extensions
+  slug              String?  @unique
+  description       String?
+  priceMonthly      Decimal? @map("price_monthly") @db.Decimal(10, 2)
+  priceYearly       Decimal? @map("price_yearly") @db.Decimal(10, 2)
+  currency          String?  @default("CRC")
+  maxActiveServices Int?     @map("max_active_services")
+  maxLeadsPerMonth  Int?     @map("max_leads_per_month")
+  active            Boolean  @default(true)
+  displayOrder      Int      @default(0) @map("display_order")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
   subscription Subscription[]
 
   @@map("pricing_plan")
 }
+
+// =====================================================================
+// SUPPLIER & MARKETPLACE
+// =====================================================================
 
 model Supplier {
   supplierId  Int    @id @default(autoincrement()) @map("supplier_id")
   userId      Int    @unique @map("user_id")
   user        User   @relation(fields: [userId], references: [userId])
   companyName String
-  posts       Post[]
 
+  // NOTE: descriptionEmbedding (vector(1536)) deferred until pgvector is installed.
+
+  slug        String? @unique
+  tagline     String?
+  description String?
+
+  businessPhone  String? @map("business_phone")
+  businessEmail  String? @map("business_email")
+  whatsappNumber String? @map("whatsapp_number")
+  websiteUrl     String? @map("website_url")
+
+  city    String?
+  address String?
+  lat     Decimal? @db.Decimal(10, 7)
+  lng     Decimal? @db.Decimal(10, 7)
+
+  minCapacity Int? @map("min_capacity")
+  maxCapacity Int? @map("max_capacity")
+
+  rating              Decimal? @db.Decimal(3, 2)
+  reviewCount         Int      @default(0) @map("review_count")
+  responseTimeMinutes Int?     @map("response_time_minutes")
+  conversionRate      Decimal? @map("conversion_rate") @db.Decimal(5, 4)
+  completionRate      Decimal? @map("completion_rate") @db.Decimal(5, 4)
+
+  verified   Boolean   @default(false)
+  verifiedAt DateTime? @map("verified_at")
+  premium    Boolean   @default(false)
+
+  source           SupplierSource @default(SELF_SIGNUP)
+  sourceExternalId String?        @map("source_external_id")
+  claimed          Boolean        @default(true)
+  claimedAt        DateTime?      @map("claimed_at")
+
+  subscriptionId Int?          @map("subscription_id")
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [subscriptionId])
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  posts           Post[]
+  services        Service[]
+  serviceAreas    SupplierServiceArea[]
+  categories      SupplierCategory[]
+  quotes          Quote[]
+  bookings        Booking[]
+  conversations   Conversation[]
+  reviewsReceived Review[]              @relation("SupplierReviews")
+  calendarEvents  CalendarEvent[]
+  payouts         Payout[]
+  media           MediaAsset[]
+  verifications   Verification[]
+  favoritedBy     Favorite[]
+  scrapeSources   ScrapeSource[]
+
+  @@index([city])
+  @@index([rating])
+  @@index([source, claimed])
+  @@index([slug])
   @@map("supplier")
 }
 
+// Post: Untouched legacy item-listing model.
 model Post {
   postId      Int      @id @default(autoincrement()) @map("post_id")
   supplierId  Int      @map("supplier_id")
@@ -78,40 +238,666 @@ model Category {
   categoryId   Int    @id @default(autoincrement()) @map("category_id")
   categoryName String
 
-  posts Post[]
+  // Additive extensions
+  parentId     Int?       @map("parent_id")
+  parent       Category?  @relation("CategoryHierarchy", fields: [parentId], references: [categoryId])
+  children     Category[] @relation("CategoryHierarchy")
+  slug         String?    @unique
+  nameEs       String?    @map("name_es")
+  nameEn       String?    @map("name_en")
+  description  String?
+  icon         String?
+  intentSchema Json?      @map("intent_schema")
+  displayOrder Int        @default(0) @map("display_order")
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
+  posts              Post[]
+  supplierCategories SupplierCategory[]
+  services           Service[]
+  requests           Request[]
+
+  @@index([parentId])
+  @@index([slug])
   @@map("category")
 }
 
+model SupplierCategory {
+  supplierId Int      @map("supplier_id")
+  categoryId Int      @map("category_id")
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  supplier   Supplier @relation(fields: [supplierId], references: [supplierId])
+  category   Category @relation(fields: [categoryId], references: [categoryId])
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@id([supplierId, categoryId])
+  @@index([categoryId])
+  @@map("supplier_category")
+}
+
+model Service {
+  serviceId  Int      @id @default(autoincrement()) @map("service_id")
+  supplierId Int      @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [supplierId])
+  categoryId Int      @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [categoryId])
+
+  name        String
+  description String
+
+  // NOTE: descriptionEmbedding (vector(1536)) deferred until pgvector is installed.
+
+  pricingModel  PricingModel @map("pricing_model")
+  basePrice     Decimal      @map("base_price") @db.Decimal(12, 2)
+  currency      String       @default("CRC")
+  minTotalPrice Decimal?     @map("min_total_price") @db.Decimal(12, 2)
+  maxTotalPrice Decimal?     @map("max_total_price") @db.Decimal(12, 2)
+
+  minUnits  Int?    @map("min_units")
+  maxUnits  Int?    @map("max_units")
+  unitLabel String? @map("unit_label")
+
+  leadTimeHours   Int? @map("lead_time_hours")
+  durationMinutes Int? @map("duration_minutes")
+
+  tags       String[]
+  inclusions String[]
+
+  active Boolean @default(true)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  quoteItems QuoteItem[]
+
+  @@index([supplierId])
+  @@index([categoryId])
+  @@map("service")
+}
+
+model SupplierServiceArea {
+  serviceAreaId Int      @id @default(autoincrement()) @map("service_area_id")
+  supplierId    Int      @map("supplier_id")
+  supplier      Supplier @relation(fields: [supplierId], references: [supplierId])
+
+  city      String
+  radiusKm  Int      @default(20) @map("radius_km")
+  travelFee Decimal? @map("travel_fee") @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([supplierId, city])
+  @@index([city])
+  @@map("supplier_service_area")
+}
+
+// =====================================================================
+// REQUEST → QUOTE → BOOKING FLOW
+// =====================================================================
+
+model Request {
+  requestId  Int       @id @default(autoincrement()) @map("request_id")
+  customerId Int       @map("customer_id")
+  customer   Customer  @relation(fields: [customerId], references: [customerId])
+  categoryId Int?      @map("category_id")
+  category   Category? @relation(fields: [categoryId], references: [categoryId])
+
+  rawQuery     String @map("raw_query")
+  parsedIntent Json?  @map("parsed_intent")
+
+  // NOTE: intentEmbedding (vector(1536)) deferred until pgvector is installed.
+
+  conversationTurns Int     @default(1) @map("conversation_turns")
+  isComplete        Boolean @default(false) @map("is_complete")
+
+  city        String?
+  serviceDate DateTime? @map("service_date")
+  guestCount  Int?      @map("guest_count")
+  budgetMin   Decimal?  @map("budget_min") @db.Decimal(12, 2)
+  budgetMax   Decimal?  @map("budget_max") @db.Decimal(12, 2)
+
+  status       RequestStatus @default(GATHERING)
+  expiresAt    DateTime?     @map("expires_at")
+  closedAt     DateTime?     @map("closed_at")
+  closedReason String?       @map("closed_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  aiConversation AiConversation?
+  quotes         Quote[]
+  conversations  Conversation[]
+  bookings       Booking[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([city, serviceDate])
+  @@index([categoryId, status])
+  @@map("request")
+}
+
+model Quote {
+  quoteId    Int      @id @default(autoincrement()) @map("quote_id")
+  requestId  Int      @map("request_id")
+  request    Request  @relation(fields: [requestId], references: [requestId])
+  supplierId Int      @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [supplierId])
+
+  totalPrice Decimal  @map("total_price") @db.Decimal(12, 2)
+  currency   String   @default("CRC")
+  message    String?
+  validUntil DateTime @map("valid_until")
+
+  status      QuoteStatus @default(SENT)
+  viewedAt    DateTime?   @map("viewed_at")
+  respondedAt DateTime?   @map("responded_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  items   QuoteItem[]
+  booking Booking?
+
+  @@unique([requestId, supplierId])
+  @@index([supplierId, status])
+  @@index([status])
+  @@map("quote")
+}
+
+model QuoteItem {
+  quoteItemId Int      @id @default(autoincrement()) @map("quote_item_id")
+  quoteId     Int      @map("quote_id")
+  quote       Quote    @relation(fields: [quoteId], references: [quoteId], onDelete: Cascade)
+  serviceId   Int?     @map("service_id")
+  service     Service? @relation(fields: [serviceId], references: [serviceId])
+
+  description String
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @map("unit_price") @db.Decimal(12, 2)
+  total       Decimal @db.Decimal(12, 2)
+
+  @@index([quoteId])
+  @@map("quote_item")
+}
+
+model Booking {
+  bookingId  Int      @id @default(autoincrement()) @map("booking_id")
+  requestId  Int      @map("request_id")
+  request    Request  @relation(fields: [requestId], references: [requestId])
+  quoteId    Int      @unique @map("quote_id")
+  quote      Quote    @relation(fields: [quoteId], references: [quoteId])
+  customerId Int      @map("customer_id")
+  customer   Customer @relation(fields: [customerId], references: [customerId])
+  supplierId Int      @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [supplierId])
+
+  serviceDate    DateTime  @map("service_date")
+  serviceEndDate DateTime? @map("service_end_date")
+  location       String
+  guestCount     Int?      @map("guest_count")
+
+  totalPrice     Decimal @map("total_price") @db.Decimal(12, 2)
+  platformFee    Decimal @map("platform_fee") @db.Decimal(12, 2)
+  supplierPayout Decimal @map("supplier_payout") @db.Decimal(12, 2)
+  currency       String  @default("CRC")
+
+  status        BookingStatus @default(CONFIRMED)
+  paymentStatus PaymentStatus @default(PENDING) @map("payment_status")
+
+  phoneRevealedAt    DateTime? @map("phone_revealed_at")
+  cancellationReason String?   @map("cancellation_reason")
+  cancelledAt        DateTime? @map("cancelled_at")
+  cancelledBy        String?   @map("cancelled_by")
+  completedAt        DateTime? @map("completed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  payment       Payment?
+  payout        Payout?
+  review        Review?
+  calendarEvent CalendarEvent?
+
+  @@index([customerId, status])
+  @@index([supplierId, status])
+  @@index([serviceDate])
+  @@map("booking")
+}
+
+model Favorite {
+  favoriteId Int      @id @default(autoincrement()) @map("favorite_id")
+  customerId Int      @map("customer_id")
+  customer   Customer @relation(fields: [customerId], references: [customerId])
+  supplierId Int      @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [supplierId])
+
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([customerId, supplierId])
+  @@map("favorite")
+}
+
+// =====================================================================
+// MESSAGING (CUSTOMER ↔ SUPPLIER)
+// =====================================================================
+
 model Conversation {
-  conversationId String    @id @default(uuid()) @map("conversation_id")
-  deviceId       String    @map("device_id") @db.VarChar(128)
-  title          String    @db.VarChar(255)
-  model          String    @db.VarChar(64)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  conversationId Int      @id @default(autoincrement()) @map("conversation_id")
+  requestId      Int      @map("request_id")
+  request        Request  @relation(fields: [requestId], references: [requestId])
+  customerId     Int      @map("customer_id")
+  customer       Customer @relation(fields: [customerId], references: [customerId])
+  supplierId     Int      @map("supplier_id")
+  supplier       Supplier @relation(fields: [supplierId], references: [supplierId])
+
+  status        ConversationStatus @default(ACTIVE)
+  lastMessageAt DateTime?          @map("last_message_at")
+
+  contactShareWarnings Int @default(0) @map("contact_share_warnings")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   messages Message[]
 
-  @@index([deviceId])
+  @@unique([requestId, supplierId])
+  @@index([customerId, lastMessageAt])
+  @@index([supplierId, lastMessageAt])
   @@map("conversation")
 }
 
 model Message {
-  messageId      String       @id @default(uuid()) @map("message_id")
-  conversationId String       @map("conversation_id")
-  conversation   Conversation @relation(fields: [conversationId], references: [conversationId], onDelete: Cascade)
-  role           String       @db.VarChar(16)
-  content        String       @db.Text
-  model          String?      @db.VarChar(64)
-  inputTokens    Int?         @map("input_tokens")
-  outputTokens   Int?         @map("output_tokens")
-  providersJson  String?      @map("providers_json") @db.Text
-  createdAt      DateTime     @default(now()) @map("created_at")
+  messageId      Int          @id @default(autoincrement()) @map("message_id")
+  conversationId Int          @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [conversationId])
 
-  @@index([conversationId])
+  senderType   SenderType @map("sender_type")
+  senderUserId Int?       @map("sender_user_id")
+
+  content     String
+  messageType MessageType @default(TEXT) @map("message_type")
+
+  filtered       Boolean @default(false)
+  filteredReason String? @map("filtered_reason")
+
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  attachments MessageAttachment[]
+
+  @@index([conversationId, createdAt])
   @@map("message")
 }
+
+model MessageAttachment {
+  attachmentId Int     @id @default(autoincrement()) @map("attachment_id")
+  messageId    Int     @map("message_id")
+  message      Message @relation(fields: [messageId], references: [messageId], onDelete: Cascade)
+
+  url       String
+  mimeType  String @map("mime_type")
+  sizeBytes Int    @map("size_bytes")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("message_attachment")
+}
+
+// =====================================================================
+// AI CONVERSATIONS (renamed from old Conversation/Message)
+// =====================================================================
+
+model AiConversation {
+  conversationId String   @id @default(uuid()) @map("conversation_id")
+  deviceId       String   @map("device_id") @db.VarChar(128)
+  title          String   @db.VarChar(255)
+  model          String   @db.VarChar(64)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Optional link to a Request (when this AI chat is intent-gathering for a request)
+  requestId Int?     @unique @map("request_id")
+  request   Request? @relation(fields: [requestId], references: [requestId])
+
+  messages AiMessage[]
+
+  @@index([deviceId])
+  @@map("ai_conversation")
+}
+
+model AiMessage {
+  messageId      String         @id @default(uuid()) @map("message_id")
+  conversationId String         @map("conversation_id")
+  conversation   AiConversation @relation(fields: [conversationId], references: [conversationId], onDelete: Cascade)
+  role           String         @db.VarChar(16)
+  content        String         @db.Text
+  model          String?        @db.VarChar(64)
+  inputTokens    Int?           @map("input_tokens")
+  outputTokens   Int?           @map("output_tokens")
+  providersJson  String?        @map("providers_json") @db.Text
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@index([conversationId])
+  @@map("ai_message")
+}
+
+// =====================================================================
+// REVIEWS & TRUST
+// =====================================================================
+
+model Review {
+  reviewId   Int      @id @default(autoincrement()) @map("review_id")
+  bookingId  Int      @unique @map("booking_id")
+  booking    Booking  @relation(fields: [bookingId], references: [bookingId])
+  customerId Int      @map("customer_id")
+  customer   Customer @relation("CustomerReviews", fields: [customerId], references: [customerId])
+  supplierId Int      @map("supplier_id")
+  supplier   Supplier @relation("SupplierReviews", fields: [supplierId], references: [supplierId])
+
+  rating Int
+  text   String?
+
+  ratingQuality       Int? @map("rating_quality")
+  ratingCommunication Int? @map("rating_communication")
+  ratingValue         Int? @map("rating_value")
+  ratingPunctuality   Int? @map("rating_punctuality")
+
+  supplierResponse    String?   @map("supplier_response")
+  supplierRespondedAt DateTime? @map("supplier_responded_at")
+
+  hidden       Boolean @default(false)
+  hiddenReason String? @map("hidden_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([supplierId, createdAt])
+  @@map("review")
+}
+
+model Verification {
+  verificationId Int      @id @default(autoincrement()) @map("verification_id")
+  supplierId     Int      @map("supplier_id")
+  supplier       Supplier @relation(fields: [supplierId], references: [supplierId])
+
+  verificationType VerificationType @map("verification_type")
+  documentUrl      String?          @map("document_url")
+  notes            String?
+
+  status          VerificationStatus @default(PENDING)
+  reviewedBy      Int?               @map("reviewed_by")
+  reviewedAt      DateTime?          @map("reviewed_at")
+  rejectionReason String?            @map("rejection_reason")
+
+  expiresAt DateTime? @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([supplierId, status])
+  @@map("verification")
+}
+
+// =====================================================================
+// COMMERCE
+// =====================================================================
+
+model Payment {
+  paymentId   Int         @id @default(autoincrement()) @map("payment_id")
+  paymentType PaymentType @map("payment_type")
+
+  bookingId      Int?          @map("booking_id")
+  booking        Booking?      @relation(fields: [bookingId], references: [bookingId])
+  subscriptionId Int?          @map("subscription_id")
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [subscriptionId])
+
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("CRC")
+
+  provider     PaymentProvider
+  externalRef  String          @map("external_ref")
+  externalData Json?           @map("external_data")
+
+  status       PaymentStatusEnum @default(PENDING)
+  failedReason String?           @map("failed_reason")
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  refundedAt DateTime? @map("refunded_at")
+
+  @@unique([bookingId])
+  @@index([externalRef])
+  @@index([status])
+  @@map("payment")
+}
+
+model Payout {
+  payoutId   Int      @id @default(autoincrement()) @map("payout_id")
+  supplierId Int      @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [supplierId])
+  bookingId  Int      @unique @map("booking_id")
+  booking    Booking  @relation(fields: [bookingId], references: [bookingId])
+
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("CRC")
+
+  status       PayoutStatus @default(PENDING)
+  scheduledFor DateTime?    @map("scheduled_for")
+  paidAt       DateTime?    @map("paid_at")
+  externalRef  String?      @map("external_ref")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([supplierId, status])
+  @@map("payout")
+}
+
+// =====================================================================
+// OPERATIONS
+// =====================================================================
+
+model CalendarEvent {
+  calendarEventId Int      @id @default(autoincrement()) @map("calendar_event_id")
+  supplierId      Int      @map("supplier_id")
+  supplier        Supplier @relation(fields: [supplierId], references: [supplierId])
+
+  eventType EventType @map("event_type")
+  title     String
+  notes     String?
+
+  startsAt DateTime @map("starts_at")
+  endsAt   DateTime @map("ends_at")
+  allDay   Boolean  @default(false) @map("all_day")
+  timezone String   @default("America/Costa_Rica")
+
+  bookingId Int?     @unique @map("booking_id")
+  booking   Booking? @relation(fields: [bookingId], references: [bookingId])
+  quoteId   Int?     @map("quote_id")
+
+  location String?
+
+  recurrenceRule String? @map("recurrence_rule")
+
+  externalCalendarId String? @map("external_calendar_id")
+  externalEventId    String? @map("external_event_id")
+
+  status    EventStatus @default(ACTIVE)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@index([supplierId, startsAt, endsAt])
+  @@index([status])
+  @@map("calendar_event")
+}
+
+model Notification {
+  notificationId Int  @id @default(autoincrement()) @map("notification_id")
+  userId         Int  @map("user_id")
+  user           User @relation(fields: [userId], references: [userId])
+
+  channel  NotificationChannel
+  template String
+
+  subject String?
+  body    String
+
+  entityType String? @map("entity_type")
+  entityId   Int?    @map("entity_id")
+
+  status       NotificationStatus @default(QUEUED)
+  sentAt       DateTime?          @map("sent_at")
+  deliveredAt  DateTime?          @map("delivered_at")
+  readAt       DateTime?          @map("read_at")
+  failedReason String?            @map("failed_reason")
+  externalRef  String?            @map("external_ref")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, status])
+  @@index([createdAt])
+  @@map("notification")
+}
+
+model MediaAsset {
+  mediaAssetId Int @id @default(autoincrement()) @map("media_asset_id")
+
+  ownerType String @map("owner_type")
+  ownerId   Int    @map("owner_id")
+
+  supplierId Int?      @map("supplier_id")
+  supplier   Supplier? @relation(fields: [supplierId], references: [supplierId])
+
+  storageProvider String  @default("r2") @map("storage_provider")
+  url             String
+  thumbnailUrl    String? @map("thumbnail_url")
+
+  mimeType  String @map("mime_type")
+  sizeBytes Int    @map("size_bytes")
+  width     Int?
+  height    Int?
+
+  altText      String? @map("alt_text")
+  caption      String?
+  displayOrder Int     @default(0) @map("display_order")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([ownerType, ownerId])
+  @@index([supplierId])
+  @@map("media_asset")
+}
+
+model AuditLog {
+  auditLogId Int @id @default(autoincrement()) @map("audit_log_id")
+
+  actorUserId Int?   @map("actor_user_id")
+  actorType   String @map("actor_type")
+
+  action     String
+  entityType String @map("entity_type")
+  entityId   Int    @map("entity_id")
+
+  before   Json?
+  after    Json?
+  metadata Json?
+
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_log")
+}
+
+model ScrapeSource {
+  scrapeSourceId Int      @id @default(autoincrement()) @map("scrape_source_id")
+  supplierId     Int      @map("supplier_id")
+  supplier       Supplier @relation(fields: [supplierId], references: [supplierId])
+
+  source     SupplierSource
+  externalId String         @map("external_id")
+  sourceUrl  String?        @map("source_url")
+
+  rawData Json @map("raw_data")
+
+  firstScrapedAt DateTime  @default(now()) @map("first_scraped_at")
+  lastScrapedAt  DateTime  @default(now()) @map("last_scraped_at")
+  refreshDueAt   DateTime? @map("refresh_due_at")
+
+  takedownRequested   Boolean   @default(false) @map("takedown_requested")
+  takedownRequestedAt DateTime? @map("takedown_requested_at")
+
+  @@unique([source, externalId])
+  @@index([supplierId])
+  @@index([refreshDueAt])
+  @@map("scrape_source")
+}
+
+// =====================================================================
+// AI / SEARCH (no vector columns until pgvector is installed)
+// =====================================================================
+
+model EmbeddingJob {
+  embeddingJobId Int @id @default(autoincrement()) @map("embedding_job_id")
+
+  entityType String @map("entity_type")
+  entityId   Int    @map("entity_id")
+
+  sourceText String @map("source_text")
+  textHash   String @map("text_hash")
+
+  status   EmbeddingStatus @default(QUEUED)
+  attempts Int             @default(0)
+  error    String?
+
+  model String?
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  processedAt DateTime? @map("processed_at")
+
+  @@unique([entityType, entityId, textHash])
+  @@index([status, createdAt])
+  @@index([entityType, entityId])
+  @@map("embedding_job")
+}
+
+model SearchLog {
+  searchLogId Int   @id @default(autoincrement()) @map("search_log_id")
+  userId      Int?  @map("user_id")
+  user        User? @relation(fields: [userId], references: [userId])
+  requestId   Int?  @map("request_id")
+
+  rawQuery       String @map("raw_query")
+  parsedIntent   Json?  @map("parsed_intent")
+  filtersApplied Json   @map("filters_applied")
+
+  resultCount       Int   @map("result_count")
+  resultSupplierIds Int[] @map("result_supplier_ids")
+
+  clickedSupplierIds   Int[] @default([]) @map("clicked_supplier_ids")
+  contactedSupplierIds Int[] @default([]) @map("contacted_supplier_ids")
+  bookedSupplierId     Int?  @map("booked_supplier_id")
+
+  latencyMs Int? @map("latency_ms")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("search_log")
+}
+
+// =====================================================================
+// ENUMS
+// =====================================================================
 
 enum Language {
   SPANISH
@@ -121,4 +907,172 @@ enum Language {
 enum Role {
   ADMIN
   SUPPLIER
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATIONS
+  SUPPORT
+  CONTENT_MODERATOR
+}
+
+enum SupplierSource {
+  SELF_SIGNUP
+  GOOGLE_PLACES
+  REGISTRO_NACIONAL
+  MANUAL_IMPORT
+  REFERRAL
+}
+
+enum PricingModel {
+  FLAT
+  PER_PERSON
+  PER_HOUR
+  PER_DAY
+  CUSTOM
+}
+
+enum RequestStatus {
+  GATHERING
+  MATCHING
+  AWAITING_QUOTES
+  QUOTES_RECEIVED
+  BOOKED
+  CLOSED
+}
+
+enum QuoteStatus {
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum BookingStatus {
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum PaymentStatus {
+  PENDING
+  DEPOSIT_PAID
+  FULLY_PAID
+  REFUNDED
+  PARTIALLY_REFUNDED
+  FAILED
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  BLOCKED
+}
+
+enum SenderType {
+  CUSTOMER
+  SUPPLIER
+  AI
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  QUOTE_REFERENCE
+  BOOKING_REFERENCE
+  SYSTEM_NOTICE
+}
+
+enum VerificationType {
+  IDENTITY
+  BUSINESS_LICENSE
+  TAX_ID
+  INSURANCE
+  HEALTH_PERMIT
+  PROFESSIONAL_CERTIFICATION
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  TRIALING
+}
+
+enum PaymentType {
+  BOOKING
+  SUBSCRIPTION
+  REFUND
+  ADJUSTMENT
+}
+
+enum PaymentProvider {
+  STRIPE
+  MERCADO_PAGO
+  MANUAL
+}
+
+enum PaymentStatusEnum {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  ON_HOLD
+}
+
+enum EventType {
+  BOOKING
+  TENTATIVE
+  BLOCKED
+  EXTERNAL
+  RECURRING
+}
+
+enum EventStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+  PUSH
+  IN_APP
+  SMS
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum EmbeddingStatus {
+  QUEUED
+  PROCESSING
+  DONE
+  FAILED
 }

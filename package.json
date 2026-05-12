@@ -22,7 +22,11 @@
     "prisma:up": "npx prisma db push",
     "prisma:studio": "npx prisma studio",
     "prisma:generate": "npx prisma generate",
+    "prisma:seed": "ts-node prisma/seed.ts",
     "sync-migrations": "npm run prisma:generate && npm run prisma:save"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.94.0",

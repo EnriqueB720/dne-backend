@@ -30,11 +30,62 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type Service {
+  serviceId: Float!
+  supplierId: Float!
+  categoryId: Float!
+  name: String!
+  description: String!
+  pricingModel: PricingModel!
+  basePrice: String!
+  currency: String!
+  minTotalPrice: String
+  maxTotalPrice: String
+  minUnits: Float
+  maxUnits: Float
+  unitLabel: String
+  active: Boolean!
+}
+
+"""How a service is priced"""
+enum PricingModel {
+  FLAT
+  PER_PERSON
+  PER_HOUR
+  PER_DAY
+  CUSTOM
+}
+
 type Supplier {
   supplierId: Float!
   user: User
   companyName: String!
+  slug: String
+  tagline: String
+  description: String
+  businessPhone: String
+  businessEmail: String
+  whatsappNumber: String
+  websiteUrl: String
+  city: String
+  rating: String
+  reviewCount: Float
+  responseTimeMinutes: Float
+  minCapacity: Float
+  maxCapacity: Float
+  verified: Boolean
+  premium: Boolean
+  services: [Service!]
   posts: [Post!]
+}
+
+type Customer {
+  customerId: Float!
+  userId: Float!
+  defaultCity: String
+  marketingOptIn: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 type User {
@@ -46,8 +97,12 @@ type User {
   country: String!
   role: Role!
   profilePicture: String
+  isCustomer: Boolean
+  isSupplier: Boolean
+  isAdmin: Boolean
   subscription: [Subscription!]
   supplier: [Supplier!]
+  customer: Customer
 }
 
 """Supported languages for users"""
@@ -77,6 +132,153 @@ type Search {
   post: [Post!]
 }
 
+type QuoteItem {
+  quoteItemId: Float!
+  quoteId: Float!
+  serviceId: Float
+  description: String!
+  quantity: String!
+  unitPrice: String!
+  total: String!
+}
+
+type Quote {
+  quoteId: Float!
+  requestId: Float!
+  supplierId: Float!
+  totalPrice: String!
+  currency: String!
+  message: String
+  validUntil: DateTime!
+  status: QuoteStatus!
+  viewedAt: DateTime
+  respondedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  items: [QuoteItem!]
+}
+
+"""Lifecycle status of a supplier quote"""
+enum QuoteStatus {
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  WITHDRAWN
+}
+
+type Request {
+  requestId: Float!
+  customerId: Float!
+  categoryId: Float
+  category: Category
+  rawQuery: String!
+  conversationTurns: Float!
+  isComplete: Boolean!
+  city: String
+  serviceDate: DateTime
+  guestCount: Float
+  budgetMin: String
+  budgetMax: String
+  status: RequestStatus!
+  expiresAt: DateTime
+  closedAt: DateTime
+  closedReason: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  quotes: [Quote!]
+}
+
+"""Lifecycle status of a customer service request"""
+enum RequestStatus {
+  GATHERING
+  MATCHING
+  AWAITING_QUOTES
+  QUOTES_RECEIVED
+  BOOKED
+  CLOSED
+}
+
+type Booking {
+  bookingId: Float!
+  requestId: Float!
+  quoteId: Float!
+  customerId: Float!
+  supplierId: Float!
+  serviceDate: DateTime!
+  serviceEndDate: DateTime
+  location: String!
+  guestCount: Float
+  totalPrice: String!
+  platformFee: String!
+  supplierPayout: String!
+  currency: String!
+  status: BookingStatus!
+  paymentStatus: PaymentStatus!
+  phoneRevealedAt: DateTime
+  cancellationReason: String
+  cancelledAt: DateTime
+  cancelledBy: String
+  completedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""Lifecycle status of a booking"""
+enum BookingStatus {
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+"""Payment lifecycle on a booking"""
+enum PaymentStatus {
+  PENDING
+  DEPOSIT_PAID
+  FULLY_PAID
+  REFUNDED
+  PARTIALLY_REFUNDED
+  FAILED
+}
+
+type CalendarEvent {
+  calendarEventId: Float!
+  supplierId: Float!
+  eventType: EventType!
+  title: String!
+  notes: String
+  startsAt: DateTime!
+  endsAt: DateTime!
+  allDay: Boolean!
+  timezone: String!
+  bookingId: Float
+  quoteId: Float
+  location: String
+  recurrenceRule: String
+  status: EventStatus!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""Type of supplier calendar event"""
+enum EventType {
+  BOOKING
+  TENTATIVE
+  BLOCKED
+  EXTERNAL
+  RECURRING
+}
+
+"""Lifecycle status of a calendar event"""
+enum EventStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
 type LoginOutput {
   access_token: String!
   expiresAt: DateTime!
@@ -91,9 +293,21 @@ type Query {
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
   supplier(where: SupplierWhereInput!): Supplier!
+  suppliers: [Supplier!]!
+  searchSuppliers(data: SupplierSearchInput!): [Supplier!]!
   category(where: CategoryWhereInput!): Category!
   pricing(where: PricingWhereInput!): Pricing!
   subscription(where: SubscriptionWhereInput!): Subscription!
+  request(where: RequestWhereInput!): Request!
+  requestsByCustomer(customerId: Int!, status: RequestStatus): [Request!]!
+  quote(where: QuoteWhereInput!): Quote!
+  quotesByRequest(requestId: Int!, status: QuoteStatus): [Quote!]!
+  quotesBySupplier(supplierId: Int!, status: QuoteStatus): [Quote!]!
+  booking(where: BookingWhereInput!): Booking!
+  bookingsByCustomer(customerId: Int!, status: BookingStatus): [Booking!]!
+  bookingsBySupplier(supplierId: Int!, status: BookingStatus): [Booking!]!
+  calendarEvent(where: CalendarEventWhereInput!): CalendarEvent!
+  calendarEventsBySupplier(supplierId: Int!, from: DateTime, to: DateTime): [CalendarEvent!]!
 }
 
 input UserWhereInput {
@@ -120,6 +334,14 @@ input SupplierWhereInput {
   supplierId: Int
 }
 
+input SupplierSearchInput {
+  serviceQuery: String
+  city: String
+  guestCount: Int
+  categoryId: Int
+  limit: Int
+}
+
 input CategoryWhereInput {
   categoryId: Int
 }
@@ -132,6 +354,22 @@ input SubscriptionWhereInput {
   subscriptionId: Int
 }
 
+input RequestWhereInput {
+  requestId: Int
+}
+
+input QuoteWhereInput {
+  quoteId: Int
+}
+
+input BookingWhereInput {
+  bookingId: Int
+}
+
+input CalendarEventWhereInput {
+  calendarEventId: Int
+}
+
 type Mutation {
   createUser(data: UserCreateInput!): User!
   createPost(data: PostCreateInput!): Post!
@@ -142,6 +380,18 @@ type Mutation {
   createCategory(data: CategoryCreateInput!): Category!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): Subscription!
+  createRequest(data: RequestCreateInput!): Request!
+  updateRequestStatus(data: RequestUpdateStatusInput!): Request!
+  closeRequest(data: RequestCloseInput!): Request!
+  createQuote(data: QuoteCreateInput!): Quote!
+  withdrawQuote(data: QuoteWithdrawInput!): Quote!
+  acceptQuote(data: QuoteAcceptInput!): Booking!
+  markQuotesViewed(data: QuoteMarkViewedInput!): Float!
+  cancelBooking(data: BookingCancelInput!): Booking!
+  completeBooking(data: BookingCompleteInput!): Booking!
+  createCalendarEvent(data: CalendarEventCreateInput!): CalendarEvent!
+  updateCalendarEvent(data: CalendarEventUpdateInput!): CalendarEvent!
+  cancelCalendarEvent(data: CalendarEventCancelInput!): CalendarEvent!
 }
 
 input UserCreateInput {
@@ -185,7 +435,8 @@ input SignUpInput {
   password: String!
   phone: String!
   country: String!
-  companyName: String!
+  role: String
+  companyName: String
   profilePicture: String
 }
 
@@ -210,4 +461,95 @@ input SubscriptionCreateInput {
   startDate: DateTime!
   endDate: DateTime!
   status: String!
+}
+
+input RequestCreateInput {
+  customerId: Int!
+  rawQuery: String!
+  categoryId: Int
+  city: String
+  serviceDate: DateTime
+  guestCount: Int
+  budgetMin: Float
+  budgetMax: Float
+  conversationTurns: Int
+  expiresAt: DateTime
+}
+
+input RequestUpdateStatusInput {
+  requestId: Int!
+  status: RequestStatus!
+}
+
+input RequestCloseInput {
+  requestId: Int!
+  reason: String
+}
+
+input QuoteCreateInput {
+  requestId: Int!
+  supplierId: Int!
+  totalPrice: Float!
+  currency: String
+  message: String
+  validUntil: DateTime!
+  items: [QuoteItemInput!]
+}
+
+input QuoteItemInput {
+  serviceId: Int
+  description: String!
+  quantity: Float!
+  unitPrice: Float!
+  total: Float!
+}
+
+input QuoteWithdrawInput {
+  quoteId: Int!
+}
+
+input QuoteAcceptInput {
+  quoteId: Int!
+}
+
+input QuoteMarkViewedInput {
+  requestId: Int!
+}
+
+input BookingCancelInput {
+  bookingId: Int!
+  reason: String
+  cancelledBy: String
+}
+
+input BookingCompleteInput {
+  bookingId: Int!
+}
+
+input CalendarEventCreateInput {
+  supplierId: Int!
+  eventType: EventType
+  title: String!
+  notes: String
+  startsAt: DateTime!
+  endsAt: DateTime!
+  allDay: Boolean
+  timezone: String
+  location: String
+  recurrenceRule: String
+}
+
+input CalendarEventUpdateInput {
+  calendarEventId: Int!
+  title: String
+  notes: String
+  startsAt: DateTime
+  endsAt: DateTime
+  allDay: Boolean
+  location: String
+  status: EventStatus
+}
+
+input CalendarEventCancelInput {
+  calendarEventId: Int!
 }

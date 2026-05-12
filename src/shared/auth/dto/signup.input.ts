@@ -1,7 +1,6 @@
-import { Field, InputType, Int } from '@nestjs/graphql';
-import { Language } from '@prisma/client';
+import { Field, InputType } from '@nestjs/graphql';
 
-import { IsEmail, MaxLength, MinLength, IsOptional } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, MaxLength, MinLength } from 'class-validator';
 
 @InputType()
 export class SignUpInput {
@@ -24,9 +23,17 @@ export class SignUpInput {
   @Field()
   country: string;
 
-  @Field()
-  companyName: string;
-  
+  /** 'CUSTOMER' or 'SUPPLIER'. Defaults to 'CUSTOMER' if omitted. */
+  @IsOptional()
+  @IsIn(['CUSTOMER', 'SUPPLIER'])
+  @Field({ nullable: true })
+  role?: string;
+
+  /** Required only when role === 'SUPPLIER'. */
+  @IsOptional()
+  @Field({ nullable: true })
+  companyName?: string;
+
   @IsOptional()
   @Field({ nullable: true })
   profilePicture?: string;

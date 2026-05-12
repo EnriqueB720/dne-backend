@@ -29,7 +29,7 @@ export class ConversationService {
   // ── Conversation CRUD ──────────────────────────────────────────────────
 
   async listConversations(deviceId: string) {
-    return this.prisma.conversation.findMany({
+    return this.prisma.aiConversation.findMany({
       where: { deviceId },
       orderBy: { updatedAt: 'desc' },
       select: {
@@ -48,7 +48,7 @@ export class ConversationService {
   }
 
   async createConversation(dto: CreateConversationDto) {
-    return this.prisma.conversation.create({
+    return this.prisma.aiConversation.create({
       data: {
         deviceId: dto.deviceId,
         title: dto.title,
@@ -58,7 +58,7 @@ export class ConversationService {
   }
 
   async getConversation(conversationId: string, deviceId: string) {
-    const conv = await this.prisma.conversation.findUnique({
+    const conv = await this.prisma.aiConversation.findUnique({
       where: { conversationId },
       include: {
         messages: { orderBy: { createdAt: 'asc' } },
@@ -76,7 +76,7 @@ export class ConversationService {
     dto: UpdateConversationDto,
   ) {
     await this.assertOwnership(conversationId, deviceId);
-    return this.prisma.conversation.update({
+    return this.prisma.aiConversation.update({
       where: { conversationId },
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
@@ -87,7 +87,7 @@ export class ConversationService {
 
   async deleteConversation(conversationId: string, deviceId: string) {
     await this.assertOwnership(conversationId, deviceId);
-    await this.prisma.conversation.delete({ where: { conversationId } });
+    await this.prisma.aiConversation.delete({ where: { conversationId } });
   }
 
   // ── Messaging ──────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ export class ConversationService {
     const modelToUse = (dto.model ?? conv.model) as SupportedModel;
 
     // Persist the user's message
-    await this.prisma.message.create({
+    await this.prisma.aiMessage.create({
       data: {
         conversationId,
         role: 'user',
@@ -110,7 +110,7 @@ export class ConversationService {
     });
 
     // Sliding window: fetch last CONTEXT_WINDOW messages (now includes the one we just saved)
-    const history = await this.prisma.message.findMany({
+    const history = await this.prisma.aiMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'desc' },
       take: CONTEXT_WINDOW,
@@ -130,7 +130,7 @@ export class ConversationService {
     });
 
     // Persist the AI's reply
-    const saved = await this.prisma.message.create({
+    const saved = await this.prisma.aiMessage.create({
       data: {
         conversationId,
         role: 'assistant',
@@ -142,7 +142,7 @@ export class ConversationService {
     });
 
     // Bump conversation.updatedAt so list stays sorted
-    await this.prisma.conversation.update({
+    await this.prisma.aiConversation.update({
       where: { conversationId },
       data: { updatedAt: new Date() },
     });
@@ -159,7 +159,7 @@ export class ConversationService {
 
   async getMessages(conversationId: string, deviceId: string) {
     await this.assertOwnership(conversationId, deviceId);
-    return this.prisma.message.findMany({
+    return this.prisma.aiMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'asc' },
     });
@@ -172,7 +172,7 @@ export class ConversationService {
     providersJson: string,
   ) {
     await this.assertOwnership(conversationId, deviceId);
-    return this.prisma.message.update({
+    return this.prisma.aiMessage.update({
       where: { messageId },
       data: { providersJson },
     });
@@ -181,7 +181,7 @@ export class ConversationService {
   // ── Private helpers ────────────────────────────────────────────────────
 
   private async assertOwnership(conversationId: string, deviceId: string) {
-    const conv = await this.prisma.conversation.findUnique({
+    const conv = await this.prisma.aiConversation.findUnique({
       where: { conversationId },
     });
     if (!conv) throw new NotFoundException('Conversation not found');
