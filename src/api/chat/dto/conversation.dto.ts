@@ -2,9 +2,15 @@ import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { SUPPORTED_MODELS, SupportedModel } from './chat-request.dto';
 
 export class CreateConversationDto {
+  /**
+   * Optional from the GraphQL/auth path (the resolver supplies userId
+   * instead). Still required when calling through the legacy REST routes
+   * that only know about deviceId.
+   */
+  @IsOptional()
   @IsString()
   @MaxLength(128)
-  deviceId: string;
+  deviceId?: string;
 
   @IsString()
   @MaxLength(255)

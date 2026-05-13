@@ -23,6 +23,10 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
       autoSchemaFile: 'schema.gql',
       graphiql: true,
       driver: ApolloDriver,
+      // Forward the express request into the GraphQL context so guards
+      // (JwtAuthGuard, OptionalJwtAuthGuard) and the @CurrentUser() decorator
+      // can read `Authorization` headers and the populated `req.user`.
+      context: ({ req, res }) => ({ req, res }),
     }),
     ScheduleModule.forRoot(),
   ],

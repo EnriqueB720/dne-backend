@@ -2,3 +2,8 @@ export * from './chat-message.dto';
 export * from './chat-request.dto';
 export * from './chat-response.dto';
 export * from './conversation.dto';
+export * from './ai-conversation.args';
+export * from './ai-conversation-create.input';
+export * from './ai-conversation-update.input';
+export * from './ai-message-send.input';
+export * from './ai-message-providers-update.input';

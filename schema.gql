@@ -132,6 +132,44 @@ type Search {
   post: [Post!]
 }
 
+type AiMessage {
+  messageId: String!
+  conversationId: String!
+  role: String!
+  content: String!
+  model: String
+  inputTokens: Float
+  outputTokens: Float
+  providersJson: String
+  createdAt: DateTime!
+}
+
+type AiConversation {
+  conversationId: String!
+  title: String!
+  model: String!
+  deviceId: String!
+  userId: Float
+  requestId: Float
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  messages: [AiMessage!]
+}
+
+type AiMessageUsage {
+  inputTokens: Float
+  outputTokens: Float
+}
+
+type SendAiMessageResult {
+  messageId: String!
+  role: String!
+  content: String!
+  model: String!
+  usage: AiMessageUsage
+  createdAt: DateTime!
+}
+
 type QuoteItem {
   quoteItemId: Float!
   quoteId: Float!
@@ -298,6 +336,9 @@ type Query {
   category(where: CategoryWhereInput!): Category!
   pricing(where: PricingWhereInput!): Pricing!
   subscription(where: SubscriptionWhereInput!): Subscription!
+  aiConversations(deviceId: String): [AiConversation!]!
+  aiConversation(conversationId: String!, deviceId: String): AiConversation!
+  aiMessages(conversationId: String!, deviceId: String): [AiMessage!]!
   request(where: RequestWhereInput!): Request!
   requestsByCustomer(customerId: Int!, status: RequestStatus): [Request!]!
   quote(where: QuoteWhereInput!): Quote!
@@ -380,6 +421,12 @@ type Mutation {
   createCategory(data: CategoryCreateInput!): Category!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): Subscription!
+  createAiConversation(data: AiConversationCreateInput!): AiConversation!
+  updateAiConversation(data: AiConversationUpdateInput!, deviceId: String): AiConversation!
+  deleteAiConversation(conversationId: String!, deviceId: String): Boolean!
+  sendAiMessage(data: AiMessageSendInput!, deviceId: String): SendAiMessageResult!
+  updateAiMessageProviders(data: AiMessageProvidersUpdateInput!, deviceId: String): AiMessage!
+  mergeGuestAiConversations(deviceId: String!): Float!
   createRequest(data: RequestCreateInput!): Request!
   updateRequestStatus(data: RequestUpdateStatusInput!): Request!
   closeRequest(data: RequestCloseInput!): Request!
@@ -461,6 +508,31 @@ input SubscriptionCreateInput {
   startDate: DateTime!
   endDate: DateTime!
   status: String!
+}
+
+input AiConversationCreateInput {
+  title: String!
+  model: String!
+  deviceId: String
+}
+
+input AiConversationUpdateInput {
+  conversationId: String!
+  title: String
+  model: String
+}
+
+input AiMessageSendInput {
+  conversationId: String!
+  content: String!
+  model: String
+  system: String
+}
+
+input AiMessageProvidersUpdateInput {
+  conversationId: String!
+  messageId: String!
+  providersJson: String!
 }
 
 input RequestCreateInput {
