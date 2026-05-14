@@ -4,6 +4,7 @@ import { ConversationService, CallerIdentity } from './conversation.service';
 import {
   AiConversationArgs,
   AiConversationCreateInput,
+  AiConversationLinkInput,
   AiConversationUpdateInput,
   AiMessageProvidersUpdateInput,
   AiMessageSendInput,
@@ -137,6 +138,23 @@ export class AiConversationResolver {
       this.caller(user, deviceId),
       data.providersJson,
     ) as unknown as Promise<AiMessage>;
+  }
+
+  /**
+   * Link a conversation to the Request it produced — called on "Select" so
+   * the AI chat connects to the Request → Quote → Booking pipeline.
+   */
+  @Mutation(() => AiConversation)
+  linkAiConversationToRequest(
+    @Args('data') data: AiConversationLinkInput,
+    @CurrentUser() user: IAuthUser | null,
+    @Args('deviceId', { nullable: true }) deviceId?: string,
+  ): Promise<AiConversation> {
+    return this.convService.linkToRequest(
+      data.conversationId,
+      data.requestId,
+      this.caller(user, deviceId),
+    ) as unknown as Promise<AiConversation>;
   }
 
   /**

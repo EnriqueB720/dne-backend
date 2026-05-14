@@ -5,6 +5,7 @@ export * from './conversation.dto';
 export * from './ai-conversation.args';
 export * from './ai-conversation-create.input';
 export * from './ai-conversation-update.input';
+export * from './ai-conversation-link.input';
 export * from './ai-message-send.input';
 export * from './ai-message-providers-update.input';
 export * from './ai-completion.input';

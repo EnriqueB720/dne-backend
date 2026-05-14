@@ -15,8 +15,23 @@ import {
 } from './dto';
 import { ChatMessageDto } from './dto';
 
-/** Number of most recent messages sent to the AI as context (sliding window). */
-const CONTEXT_WINDOW = 12;
+/**
+ * Conversation-history context window, sized by an approximate TOKEN budget
+ * rather than a fixed message count. A hard "last N messages" window is
+ * fragile: 12 short messages might be 400 tokens, 12 long ones (pasted text,
+ * fat provider-grounding blocks) could blow past the model's context limit —
+ * or just waste money. We instead walk newest→oldest, summing an estimate,
+ * and stop once the budget is spent.
+ */
+const CONTEXT_TOKEN_BUDGET = 3000;
+/** Hard cap on rows pulled from the DB before the token walk. */
+const MAX_CONTEXT_MESSAGES = 40;
+
+/** Rough token estimate (~4 chars/token) — good enough for budgeting; no
+ *  tokenizer dependency, and erring slightly high is safe. */
+function estimateTokens(text: string): number {
+  return Math.ceil((text?.length ?? 0) / 4);
+}
 
 /**
  * Identity of the caller. Either `userId` (authenticated) or `deviceId`
@@ -142,16 +157,32 @@ export class ConversationService {
       },
     });
 
-    const history = await this.prisma.aiMessage.findMany({
+    // Pull a bounded pool of recent messages, then keep as many of the
+    // newest as fit inside the token budget. Always keep at least the most
+    // recent message (the one we just saved) even if it alone is large.
+    const recent = await this.prisma.aiMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'desc' },
-      take: CONTEXT_WINDOW,
+      take: MAX_CONTEXT_MESSAGES,
       select: { role: true, content: true },
     });
-    const contextMessages: ChatMessageDto[] = history.reverse().map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }));
+
+    const windowed: typeof recent = [];
+    let remaining = CONTEXT_TOKEN_BUDGET;
+    for (const m of recent) {
+      const cost = estimateTokens(m.content);
+      if (windowed.length > 0 && cost > remaining) break;
+      windowed.push(m);
+      remaining -= cost;
+    }
+
+    // Reverse to chronological order — the model expects oldest-first.
+    const contextMessages: ChatMessageDto[] = windowed
+      .reverse()
+      .map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
 
     const aiResponse = await this.chatService.send({
       model: modelToUse,
@@ -204,6 +235,23 @@ export class ConversationService {
     return this.prisma.aiMessage.update({
       where: { messageId },
       data: { providersJson },
+    });
+  }
+
+  /**
+   * Link a conversation to the Request it produced (set on "Select"). This
+   * connects the AI chat to the Request → Quote → Booking pipeline so the
+   * originating conversation is reachable from the request and vice-versa.
+   */
+  async linkToRequest(
+    conversationId: string,
+    requestId: number,
+    caller: CallerIdentity,
+  ) {
+    await this.assertOwnership(conversationId, caller);
+    return this.prisma.aiConversation.update({
+      where: { conversationId },
+      data: { requestId },
     });
   }
 
