@@ -7,6 +7,7 @@ import {
   RequestCloseInput,
   RequestCreateInput,
   RequestListArgs,
+  RequestsBySupplierArgs,
   RequestUpdateStatusInput,
 } from './dto';
 import { Request, RequestSelect } from './model';
@@ -31,6 +32,24 @@ export class RequestService {
   ): Promise<Request[]> {
     return await this.prismaService.request.findMany({
       where: { customerId, ...(status && { status }) },
+      orderBy: { createdAt: 'desc' },
+      select,
+    });
+  }
+
+  /**
+   * Returns the requests where the given supplier has at least one quote.
+   * This is the supplier-side view of "their" requests.
+   */
+  public async findManyBySupplier(
+    { supplierId, status }: RequestsBySupplierArgs,
+    { select }: RequestSelect,
+  ): Promise<Request[]> {
+    return await this.prismaService.request.findMany({
+      where: {
+        ...(status && { status }),
+        quotes: { some: { supplierId } },
+      },
       orderBy: { createdAt: 'desc' },
       select,
     });

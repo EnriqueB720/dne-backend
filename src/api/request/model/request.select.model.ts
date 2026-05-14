@@ -1,5 +1,6 @@
 import { CategorySelect } from 'src/api/category/model';
 import { QuoteSelect } from 'src/api/quote/model';
+import { CustomerSelect } from 'src/api/customer/model';
 
 interface RequestPrismaSelect {
   requestId?: boolean;
@@ -21,6 +22,7 @@ interface RequestPrismaSelect {
   createdAt?: boolean;
   updatedAt?: boolean;
   quotes?: QuoteSelect;
+  customer?: CustomerSelect;
 }
 
 export interface RequestSelect {

@@ -46,6 +46,7 @@ model User {
   adminProfile    Admin?
   notifications   Notification[]
   searchLogs      SearchLog[]
+  conversationStates ConversationParticipantState[]
 
   @@index([email])
   @@index([phone])
@@ -501,12 +502,30 @@ model Conversation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  messages Message[]
+  messages          Message[]
+  participantStates ConversationParticipantState[]
 
   @@unique([requestId, supplierId])
   @@index([customerId, lastMessageAt])
   @@index([supplierId, lastMessageAt])
   @@map("conversation")
+}
+
+/// Per-user view state for a conversation. A row exists only when a participant
+/// has explicitly archived (soft-deleted) the conversation from their inbox.
+/// Absence of a row = active for that user.
+model ConversationParticipantState {
+  conversationId Int          @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [conversationId], onDelete: Cascade)
+  userId         Int          @map("user_id")
+  user           User         @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  archivedAt     DateTime?    @map("archived_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@id([conversationId, userId])
+  @@index([userId, archivedAt])
+  @@map("conversation_participant_state")
 }
 
 model Message {

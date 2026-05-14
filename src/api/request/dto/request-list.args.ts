@@ -9,3 +9,12 @@ export class RequestListArgs {
   @Field(() => RequestStatus, { nullable: true })
   status?: RequestStatus;
 }
+
+@ArgsType()
+export class RequestsBySupplierArgs {
+  @Field(() => Int)
+  supplierId: number;
+
+  @Field(() => RequestStatus, { nullable: true })
+  status?: RequestStatus;
+}

@@ -1,3 +1,5 @@
+import { UserSelect } from 'src/api/user/model';
+
 interface CustomerPrismaSelect {
   customerId?: boolean;
   userId?: boolean;
@@ -5,6 +7,7 @@ interface CustomerPrismaSelect {
   marketingOptIn?: boolean;
   createdAt?: boolean;
   updatedAt?: boolean;
+  user?: UserSelect;
 }
 
 export interface CustomerSelect {

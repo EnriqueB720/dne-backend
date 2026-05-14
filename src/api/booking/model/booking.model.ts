@@ -1,5 +1,8 @@
 import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { BookingStatus, PaymentStatus, Prisma } from '@prisma/client';
+import { Supplier } from 'src/api/supplier/model';
+import { Customer } from 'src/api/customer/model';
+import { Request } from 'src/api/request/model';
 
 @ObjectType()
 export class Booking {
@@ -68,6 +71,15 @@ export class Booking {
 
   @Field()
   updatedAt: Date;
+
+  @Field(() => Supplier, { nullable: true })
+  supplier?: Supplier;
+
+  @Field(() => Customer, { nullable: true })
+  customer?: Customer;
+
+  @Field(() => Request, { nullable: true })
+  request?: Request;
 }
 
 registerEnumType(BookingStatus, {

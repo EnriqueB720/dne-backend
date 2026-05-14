@@ -1,6 +1,8 @@
 import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { Prisma, QuoteStatus } from '@prisma/client';
 import { QuoteItem } from './quote-item.model';
+import { Supplier } from 'src/api/supplier/model';
+import { Request } from 'src/api/request/model';
 
 @ObjectType()
 export class Quote {
@@ -42,6 +44,12 @@ export class Quote {
 
   @Field(() => [QuoteItem], { nullable: true })
   items?: QuoteItem[];
+
+  @Field(() => Supplier, { nullable: true })
+  supplier?: Supplier;
+
+  @Field(() => Request, { nullable: true })
+  request?: Request;
 }
 
 registerEnumType(QuoteStatus, {

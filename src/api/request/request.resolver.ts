@@ -8,6 +8,7 @@ import {
   RequestCloseInput,
   RequestCreateInput,
   RequestListArgs,
+  RequestsBySupplierArgs,
   RequestUpdateStatusInput,
 } from './dto';
 
@@ -29,6 +30,14 @@ export class RequestResolver {
     @GraphQLFields() { fields }: IGraphQLFields<RequestSelect>,
   ): Promise<Request[]> {
     return await this.requestService.findManyByCustomer(args, fields);
+  }
+
+  @Query(() => [Request])
+  public async requestsBySupplier(
+    @Args() args: RequestsBySupplierArgs,
+    @GraphQLFields() { fields }: IGraphQLFields<RequestSelect>,
+  ): Promise<Request[]> {
+    return await this.requestService.findManyBySupplier(args, fields);
   }
 
   @Mutation(() => Request)

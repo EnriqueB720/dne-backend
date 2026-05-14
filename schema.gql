@@ -86,6 +86,7 @@ type Customer {
   marketingOptIn: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
+  user: User
 }
 
 type User {
@@ -156,6 +157,8 @@ type Quote {
   createdAt: DateTime!
   updatedAt: DateTime!
   items: [QuoteItem!]
+  supplier: Supplier
+  request: Request
 }
 
 """Lifecycle status of a supplier quote"""
@@ -188,6 +191,7 @@ type Request {
   createdAt: DateTime!
   updatedAt: DateTime!
   quotes: [Quote!]
+  customer: Customer
 }
 
 """Lifecycle status of a customer service request"""
@@ -223,6 +227,9 @@ type Booking {
   completedAt: DateTime
   createdAt: DateTime!
   updatedAt: DateTime!
+  supplier: Supplier
+  customer: Customer
+  request: Request
 }
 
 """Lifecycle status of a booking"""
@@ -279,6 +286,59 @@ enum EventStatus {
   COMPLETED
 }
 
+type Message {
+  messageId: Float!
+  conversationId: Float!
+  senderType: SenderType!
+  senderUserId: Float
+  content: String!
+  messageType: MessageType!
+  filtered: Boolean!
+  filteredReason: String
+  readAt: DateTime
+  createdAt: DateTime!
+}
+
+"""Who sent a message in a customer↔supplier conversation"""
+enum SenderType {
+  CUSTOMER
+  SUPPLIER
+  AI
+  SYSTEM
+}
+
+"""Format of a chat message"""
+enum MessageType {
+  TEXT
+  IMAGE
+  QUOTE_REFERENCE
+  BOOKING_REFERENCE
+  SYSTEM_NOTICE
+}
+
+type Conversation {
+  conversationId: Float!
+  requestId: Float!
+  customerId: Float!
+  supplierId: Float!
+  status: ConversationStatus!
+  lastMessageAt: DateTime
+  contactShareWarnings: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  messages: [Message!]
+  supplier: Supplier
+  customer: Customer
+  request: Request
+}
+
+"""Lifecycle status of a customer↔supplier conversation"""
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  BLOCKED
+}
+
 type LoginOutput {
   access_token: String!
   expiresAt: DateTime!
@@ -300,6 +360,7 @@ type Query {
   subscription(where: SubscriptionWhereInput!): Subscription!
   request(where: RequestWhereInput!): Request!
   requestsByCustomer(customerId: Int!, status: RequestStatus): [Request!]!
+  requestsBySupplier(supplierId: Int!, status: RequestStatus): [Request!]!
   quote(where: QuoteWhereInput!): Quote!
   quotesByRequest(requestId: Int!, status: QuoteStatus): [Quote!]!
   quotesBySupplier(supplierId: Int!, status: QuoteStatus): [Quote!]!
@@ -308,6 +369,10 @@ type Query {
   bookingsBySupplier(supplierId: Int!, status: BookingStatus): [Booking!]!
   calendarEvent(where: CalendarEventWhereInput!): CalendarEvent!
   calendarEventsBySupplier(supplierId: Int!, from: DateTime, to: DateTime): [CalendarEvent!]!
+  conversation(where: ConversationWhereInput!): Conversation!
+  conversationsByCustomer(customerId: Int!, viewerUserId: Int!, status: ConversationStatus): [Conversation!]!
+  conversationsBySupplier(supplierId: Int!, viewerUserId: Int!, status: ConversationStatus): [Conversation!]!
+  messagesByConversation(conversationId: Int!, limit: Int): [Message!]!
 }
 
 input UserWhereInput {
@@ -370,6 +435,10 @@ input CalendarEventWhereInput {
   calendarEventId: Int
 }
 
+input ConversationWhereInput {
+  conversationId: Int
+}
+
 type Mutation {
   createUser(data: UserCreateInput!): User!
   createPost(data: PostCreateInput!): Post!
@@ -392,6 +461,11 @@ type Mutation {
   createCalendarEvent(data: CalendarEventCreateInput!): CalendarEvent!
   updateCalendarEvent(data: CalendarEventUpdateInput!): CalendarEvent!
   cancelCalendarEvent(data: CalendarEventCancelInput!): CalendarEvent!
+  createConversation(data: ConversationCreateInput!): Conversation!
+  sendMessage(data: MessageSendInput!): Message!
+  markMessagesAsRead(data: MarkMessagesReadInput!): Float!
+  archiveConversation(data: ConversationArchiveInput!): Conversation!
+  restoreConversation(data: ConversationRestoreInput!): Conversation!
 }
 
 input UserCreateInput {
@@ -552,4 +626,31 @@ input CalendarEventUpdateInput {
 
 input CalendarEventCancelInput {
   calendarEventId: Int!
+}
+
+input ConversationCreateInput {
+  requestId: Int!
+  supplierId: Int!
+}
+
+input MessageSendInput {
+  conversationId: Int!
+  senderUserId: Int!
+  content: String!
+  messageType: MessageType
+}
+
+input MarkMessagesReadInput {
+  conversationId: Int!
+  viewerUserId: Int!
+}
+
+input ConversationArchiveInput {
+  conversationId: Int!
+  userId: Int!
+}
+
+input ConversationRestoreInput {
+  conversationId: Int!
+  userId: Int!
 }

@@ -10,6 +10,7 @@ import { RequestModule } from './request/request.module';
 import { QuoteModule } from './quote/quote.module';
 import { BookingModule } from './booking/booking.module';
 import { CalendarEventModule } from './calendar-event/calendar-event.module';
+import { ConversationModule } from './conversation/conversation.module';
 
 
 
@@ -26,4 +27,5 @@ export {
   QuoteModule,
   BookingModule,
   CalendarEventModule,
+  ConversationModule,
 }
