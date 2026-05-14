@@ -42,9 +42,15 @@ export class SendMessageDto {
   @IsIn(SUPPORTED_MODELS as unknown as string[])
   model?: SupportedModel;
 
-  /** Optional system prompt override */
+  /** Per-turn (dynamic) system prompt — never cached */
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   system?: string;
+
+  /** Stable system-prompt prefix eligible for provider-side prompt caching */
+  @IsOptional()
+  @IsString()
+  @MaxLength(8000)
+  cachedSystem?: string;
 }

@@ -23,4 +23,14 @@ export class AiMessageSendInput {
   @IsString()
   @MaxLength(4000)
   system?: string;
+
+  /**
+   * Stable system-prompt prefix eligible for provider-side prompt caching —
+   * keep identical across turns. Per-turn context belongs in `system`.
+   */
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(8000)
+  cachedSystem?: string;
 }

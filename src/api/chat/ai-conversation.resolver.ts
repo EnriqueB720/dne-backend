@@ -140,6 +140,24 @@ export class AiConversationResolver {
   }
 
   /**
+   * Undo the most recent turn (the trailing user message and, if it already
+   * landed, the assistant reply). Used when the user stops a response
+   * mid-flight so the aborted turn leaves nothing behind. Returns the number
+   * of messages deleted.
+   */
+  @Mutation(() => Number)
+  async rollbackLastAiTurn(
+    @Args() { conversationId }: AiConversationArgs,
+    @CurrentUser() user: IAuthUser | null,
+    @Args('deviceId', { nullable: true }) deviceId?: string,
+  ): Promise<number> {
+    return this.convService.rollbackLastTurn(
+      conversationId,
+      this.caller(user, deviceId),
+    );
+  }
+
+  /**
    * Link any guest (userId-null) conversations created on the given device
    * to the currently authenticated user. Returns the count claimed. Safe to
    * call as a no-op when there are no guest chats — never throws on zero.

@@ -157,6 +157,7 @@ export class ConversationService {
       model: modelToUse,
       messages: contextMessages,
       system: dto.system,
+      cachedSystem: dto.cachedSystem,
     });
 
     const saved = await this.prisma.aiMessage.create({
@@ -204,6 +205,44 @@ export class ConversationService {
       where: { messageId },
       data: { providersJson },
     });
+  }
+
+  /**
+   * Undo the most recent turn — used when the user hits "stop" mid-response.
+   * Deletes the trailing assistant message (if the AI reply already landed
+   * server-side) and the trailing user message, so an aborted turn leaves no
+   * orphaned message behind. Never touches earlier, completed turns.
+   *
+   * Returns the number of messages deleted (0–2).
+   */
+  async rollbackLastTurn(conversationId: string, caller: CallerIdentity) {
+    await this.assertOwnership(conversationId, caller);
+
+    const recent = await this.prisma.aiMessage.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'desc' },
+      take: 2,
+    });
+    if (recent.length === 0) return 0;
+
+    const idsToDelete: string[] = [];
+    // If the assistant reply already persisted, drop it first...
+    if (recent[0].role === 'assistant') {
+      idsToDelete.push(recent[0].messageId);
+      // ...and the user message that prompted it, if that's next.
+      if (recent[1]?.role === 'user') {
+        idsToDelete.push(recent[1].messageId);
+      }
+    } else if (recent[0].role === 'user') {
+      // Aborted before the reply landed — just the lone user message.
+      idsToDelete.push(recent[0].messageId);
+    }
+
+    if (idsToDelete.length === 0) return 0;
+    await this.prisma.aiMessage.deleteMany({
+      where: { messageId: { in: idsToDelete } },
+    });
+    return idsToDelete.length;
   }
 
   /**
