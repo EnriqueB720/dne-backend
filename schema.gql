@@ -170,6 +170,12 @@ type SendAiMessageResult {
   createdAt: DateTime!
 }
 
+type AiCompletionResult {
+  content: String!
+  model: String!
+  usage: AiMessageUsage
+}
+
 type QuoteItem {
   quoteItemId: Float!
   quoteId: Float!
@@ -421,11 +427,14 @@ type Mutation {
   createCategory(data: CategoryCreateInput!): Category!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): Subscription!
+  aiComplete(data: AiCompletionInput!): AiCompletionResult!
   createAiConversation(data: AiConversationCreateInput!): AiConversation!
   updateAiConversation(data: AiConversationUpdateInput!, deviceId: String): AiConversation!
   deleteAiConversation(conversationId: String!, deviceId: String): Boolean!
   sendAiMessage(data: AiMessageSendInput!, deviceId: String): SendAiMessageResult!
   updateAiMessageProviders(data: AiMessageProvidersUpdateInput!, deviceId: String): AiMessage!
+  linkAiConversationToRequest(data: AiConversationLinkInput!, deviceId: String): AiConversation!
+  rollbackLastAiTurn(conversationId: String!, deviceId: String): Float!
   mergeGuestAiConversations(deviceId: String!): Float!
   createRequest(data: RequestCreateInput!): Request!
   updateRequestStatus(data: RequestUpdateStatusInput!): Request!
@@ -510,6 +519,18 @@ input SubscriptionCreateInput {
   status: String!
 }
 
+input AiCompletionInput {
+  model: String!
+  messages: [AiChatMessageInput!]!
+  system: String
+  cachedSystem: String
+}
+
+input AiChatMessageInput {
+  role: String!
+  content: String!
+}
+
 input AiConversationCreateInput {
   title: String!
   model: String!
@@ -527,12 +548,18 @@ input AiMessageSendInput {
   content: String!
   model: String
   system: String
+  cachedSystem: String
 }
 
 input AiMessageProvidersUpdateInput {
   conversationId: String!
   messageId: String!
   providersJson: String!
+}
+
+input AiConversationLinkInput {
+  conversationId: String!
+  requestId: Int!
 }
 
 input RequestCreateInput {
