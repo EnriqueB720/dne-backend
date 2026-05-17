@@ -11,6 +11,7 @@ import { QuoteModule } from './quote/quote.module';
 import { BookingModule } from './booking/booking.module';
 import { CalendarEventModule } from './calendar-event/calendar-event.module';
 import { ConversationModule } from './conversation/conversation.module';
+import { NotificationModule } from './notification/notification.module';
 
 
 
@@ -28,4 +29,5 @@ export {
   BookingModule,
   CalendarEventModule,
   ConversationModule,
+  NotificationModule,
 }

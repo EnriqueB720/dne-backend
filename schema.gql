@@ -101,7 +101,7 @@ type User {
   isCustomer: Boolean
   isSupplier: Boolean
   isAdmin: Boolean
-  subscription: [Subscription!]
+  subscription: [PlanSubscription!]
   supplier: [Supplier!]
   customer: Customer
 }
@@ -118,7 +118,7 @@ enum Role {
   SUPPLIER
 }
 
-type Subscription {
+type PlanSubscription {
   subscriptionId: Float!
   userId: Float!
   user: User
@@ -133,6 +133,38 @@ type Search {
   post: [Post!]
 }
 
+type Notification {
+  notificationId: Int!
+  userId: Int!
+  channel: NotificationChannel!
+  template: String!
+  subject: String
+  body: String!
+  entityType: String
+  entityId: Int
+  status: NotificationStatus!
+  readAt: DateTime
+  createdAt: DateTime!
+}
+
+"""How a notification is delivered (in-app, email, etc.)"""
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+  PUSH
+  IN_APP
+  SMS
+}
+
+"""Delivery lifecycle status of a notification"""
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
 type QuoteItem {
   quoteItemId: Float!
   quoteId: Float!
@@ -141,6 +173,11 @@ type QuoteItem {
   quantity: String!
   unitPrice: String!
   total: String!
+}
+
+type QuoteSlot {
+  startsAt: DateTime!
+  endsAt: DateTime!
 }
 
 type Quote {
@@ -154,6 +191,8 @@ type Quote {
   status: QuoteStatus!
   viewedAt: DateTime
   respondedAt: DateTime
+  offeredSlots: [QuoteSlot!]
+  selectedSlotIndex: Int
   createdAt: DateTime!
   updatedAt: DateTime!
   items: [QuoteItem!]
@@ -169,6 +208,12 @@ enum QuoteStatus {
   REJECTED
   EXPIRED
   WITHDRAWN
+}
+
+type QuoteEvent {
+  eventType: String!
+  quoteId: Int!
+  requestId: Int!
 }
 
 type Request {
@@ -204,6 +249,11 @@ enum RequestStatus {
   CLOSED
 }
 
+type RequestEvent {
+  eventType: String!
+  requestId: Int!
+}
+
 type Booking {
   bookingId: Float!
   requestId: Float!
@@ -230,6 +280,7 @@ type Booking {
   supplier: Supplier
   customer: Customer
   request: Request
+  quote: Quote
 }
 
 """Lifecycle status of a booking"""
@@ -249,6 +300,11 @@ enum PaymentStatus {
   REFUNDED
   PARTIALLY_REFUNDED
   FAILED
+}
+
+type BookingEvent {
+  eventType: String!
+  bookingId: Int!
 }
 
 type CalendarEvent {
@@ -339,6 +395,13 @@ enum ConversationStatus {
   BLOCKED
 }
 
+type MessageEvent {
+  eventType: String!
+  conversationId: Int!
+  messageId: Int!
+  senderUserId: Int!
+}
+
 type LoginOutput {
   access_token: String!
   expiresAt: DateTime!
@@ -357,10 +420,13 @@ type Query {
   searchSuppliers(data: SupplierSearchInput!): [Supplier!]!
   category(where: CategoryWhereInput!): Category!
   pricing(where: PricingWhereInput!): Pricing!
-  subscription(where: SubscriptionWhereInput!): Subscription!
+  subscription(where: SubscriptionWhereInput!): PlanSubscription!
   request(where: RequestWhereInput!): Request!
   requestsByCustomer(customerId: Int!, status: RequestStatus): [Request!]!
   requestsBySupplier(supplierId: Int!, status: RequestStatus): [Request!]!
+  openRequestsForSupplier(supplierId: Int!, limit: Int = 50): [Request!]!
+  notificationsByUser(userId: Int!, unreadOnly: Boolean = false, limit: Int = 50): [Notification!]!
+  unreadNotificationCount(userId: Int!): Int!
   quote(where: QuoteWhereInput!): Quote!
   quotesByRequest(requestId: Int!, status: QuoteStatus): [Quote!]!
   quotesBySupplier(supplierId: Int!, status: QuoteStatus): [Quote!]!
@@ -448,10 +514,12 @@ type Mutation {
   createSupplier(data: SupplierCreateInput!): Supplier!
   createCategory(data: CategoryCreateInput!): Category!
   createPricing(data: PricingCreateInput!): Pricing!
-  createSubscription(data: SubscriptionCreateInput!): Subscription!
+  createSubscription(data: SubscriptionCreateInput!): PlanSubscription!
   createRequest(data: RequestCreateInput!): Request!
   updateRequestStatus(data: RequestUpdateStatusInput!): Request!
   closeRequest(data: RequestCloseInput!): Request!
+  markNotificationAsRead(data: NotificationMarkReadInput!): Notification!
+  markAllNotificationsAsRead(data: NotificationsMarkAllReadInput!): Int!
   createQuote(data: QuoteCreateInput!): Quote!
   withdrawQuote(data: QuoteWithdrawInput!): Quote!
   acceptQuote(data: QuoteAcceptInput!): Booking!
@@ -560,6 +628,15 @@ input RequestCloseInput {
   reason: String
 }
 
+input NotificationMarkReadInput {
+  notificationId: Int!
+  userId: Int!
+}
+
+input NotificationsMarkAllReadInput {
+  userId: Int!
+}
+
 input QuoteCreateInput {
   requestId: Int!
   supplierId: Int!
@@ -568,6 +645,7 @@ input QuoteCreateInput {
   message: String
   validUntil: DateTime!
   items: [QuoteItemInput!]
+  offeredSlots: [QuoteSlotInput!]
 }
 
 input QuoteItemInput {
@@ -578,12 +656,18 @@ input QuoteItemInput {
   total: Float!
 }
 
+input QuoteSlotInput {
+  startsAt: DateTime!
+  endsAt: DateTime!
+}
+
 input QuoteWithdrawInput {
   quoteId: Int!
 }
 
 input QuoteAcceptInput {
   quoteId: Int!
+  slotIndex: Int
 }
 
 input QuoteMarkViewedInput {
@@ -653,4 +737,15 @@ input ConversationArchiveInput {
 input ConversationRestoreInput {
   conversationId: Int!
   userId: Int!
+}
+
+type Subscription {
+  requestEventForCustomer(customerId: Int!): RequestEvent!
+  openRequestEventForSupplier(supplierId: Int!): RequestEvent!
+  notificationCreated(userId: Int!): Notification!
+  quoteEventForCustomer(customerId: Int!): QuoteEvent!
+  quoteEventForSupplier(supplierId: Int!): QuoteEvent!
+  bookingEventForCustomer(customerId: Int!): BookingEvent!
+  bookingEventForSupplier(supplierId: Int!): BookingEvent!
+  messageEventForConversation(conversationId: Int!): MessageEvent!
 }

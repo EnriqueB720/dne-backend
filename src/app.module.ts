@@ -2,8 +2,9 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from './shared/datasource/prisma/prisma.module';
 import { ConfigModule } from 'src/shared/config/config.module';
 import { GoogleDriveModule } from './shared/google-drive/google-drive.module';
+import { PubSubModule } from './shared/pubsub/pubsub.module';
 import { JwtModule } from '@nestjs/jwt';
-import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule, ChatModule, RequestModule, QuoteModule, BookingModule, CalendarEventModule, ConversationModule } from '@apis';
+import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule, ChatModule, RequestModule, QuoteModule, BookingModule, CalendarEventModule, ConversationModule, NotificationModule } from '@apis';
 import { AuthModule } from './shared/auth/auth.module';
 
 
@@ -15,6 +16,7 @@ import { AuthModule } from './shared/auth/auth.module';
     }),
     ConfigModule,
     PrismaModule,
+    PubSubModule,
     UserModule,
     GoogleDriveModule,
     SearchModule,
@@ -30,6 +32,7 @@ import { AuthModule } from './shared/auth/auth.module';
     BookingModule,
     CalendarEventModule,
     ConversationModule,
+    NotificationModule,
   ],
   controllers: [],
   providers: [],

@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
+import { NotificationModule } from '../notification/notification.module';
 import { ConversationResolver } from './conversation.resolver';
 import { ConversationService } from './conversation.service';
 
 @Module({
-  imports: [],
+  imports: [NotificationModule],
   providers: [ConversationResolver, ConversationService],
   exports: [ConversationResolver, ConversationService],
 })

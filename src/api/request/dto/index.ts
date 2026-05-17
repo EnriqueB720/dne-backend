@@ -4,3 +4,4 @@ export * from './request-update-status.input';
 export * from './request-close.input';
 export * from './request.args';
 export * from './request-list.args';
+export * from './open-requests-for-supplier.args';

@@ -1,6 +1,7 @@
-import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { Field, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { Prisma, QuoteStatus } from '@prisma/client';
 import { QuoteItem } from './quote-item.model';
+import { QuoteSlot } from './quote-slot.model';
 import { Supplier } from 'src/api/supplier/model';
 import { Request } from 'src/api/request/model';
 
@@ -35,6 +36,16 @@ export class Quote {
 
   @Field({ nullable: true })
   respondedAt?: Date;
+
+  // TS type is `any` (Prisma returns this column as `JsonValue`), but the
+  // GraphQL schema is strongly typed as `[QuoteSlot]` and the stored shape
+  // is always `[{ startsAt, endsAt }, …]`. Default field-resolver passes the
+  // raw JSON through and GraphQL serializes each entry.
+  @Field(() => [QuoteSlot], { nullable: true })
+  offeredSlots?: any;
+
+  @Field(() => Int, { nullable: true })
+  selectedSlotIndex?: number;
 
   @Field()
   createdAt: Date;

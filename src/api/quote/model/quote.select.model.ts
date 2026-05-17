@@ -13,6 +13,8 @@ interface QuotePrismaSelect {
   status?: boolean;
   viewedAt?: boolean;
   respondedAt?: boolean;
+  offeredSlots?: boolean;
+  selectedSlotIndex?: boolean;
   createdAt?: boolean;
   updatedAt?: boolean;
   items?: QuoteItemSelect;

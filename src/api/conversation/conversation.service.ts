@@ -1,7 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConversationStatus, MessageType, SenderType } from '@prisma/client';
+import { PubSub } from 'graphql-subscriptions';
 
 import { PrismaService } from '@prisma-datasource';
+import { PUB_SUB } from 'src/shared/pubsub/pubsub.module';
+import { NotificationService } from '../notification/notification.service';
 import {
   ConversationArchiveInput,
   ConversationArgs,
@@ -44,9 +47,16 @@ function filterContact(content: string): {
   };
 }
 
+/** PubSub channel for incoming chat messages, scoped by conversationId. */
+export const MESSAGE_EVENT_CHANNEL = 'MESSAGE_EVENT';
+
 @Injectable()
 export class ConversationService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly notificationService: NotificationService,
+    @Inject(PUB_SUB) private readonly pubSub: PubSub,
+  ) {}
 
   // ── Queries ─────────────────────────────────────────────────────────
 
@@ -177,8 +187,18 @@ export class ConversationService {
       select: {
         conversationId: true,
         status: true,
-        customer: { select: { userId: true } },
-        supplier: { select: { userId: true } },
+        customer: {
+          select: {
+            userId: true,
+            user: { select: { name: true } },
+          },
+        },
+        supplier: {
+          select: {
+            userId: true,
+            companyName: true,
+          },
+        },
       },
     });
     if (!conversation) {
@@ -195,8 +215,8 @@ export class ConversationService {
 
     const { cleanContent, filtered, filteredReason } = filterContact(content);
 
-    return await this.prismaService.$transaction(async (tx) => {
-      const message = await tx.message.create({
+    const message = await this.prismaService.$transaction(async (tx) => {
+      const created = await tx.message.create({
         data: {
           conversationId,
           senderType,
@@ -217,8 +237,83 @@ export class ConversationService {
         },
       });
 
-      return message;
+      return created;
     });
+
+    // Notify the OTHER party + publish a live event so the open thread updates
+    // immediately on their side. Best-effort, never fails the send.
+    void this.fanoutMessageEvent({
+      conversationId,
+      message,
+      senderUserId,
+      senderType,
+      previewSource: cleanContent,
+      customer: conversation.customer,
+      supplier: conversation.supplier,
+    });
+
+    return message;
+  }
+
+  private async fanoutMessageEvent(args: {
+    conversationId: number;
+    message: Message;
+    senderUserId: number;
+    senderType: SenderType;
+    previewSource: string;
+    customer: { userId: number; user: { name: string } | null };
+    supplier: { userId: number; companyName: string };
+  }): Promise<void> {
+    const {
+      conversationId,
+      message,
+      senderUserId,
+      senderType,
+      previewSource,
+      customer,
+      supplier,
+    } = args;
+
+    const messageId = (message as any).messageId as number | undefined;
+
+    // Live event so the recipient's open thread refetches in real time.
+    // Channel is the constant; the resolver filters by conversationId so each
+    // subscriber only sees events on threads they're watching.
+    void this.pubSub.publish(MESSAGE_EVENT_CHANNEL, {
+      messageEvent: {
+        eventType: 'CREATED',
+        conversationId,
+        messageId: messageId ?? 0,
+        senderUserId,
+      },
+      conversationId,
+    });
+
+    try {
+      const recipientUserId =
+        senderType === SenderType.CUSTOMER ? supplier.userId : customer.userId;
+      // Don't ping the sender. Also skip system messages.
+      if (recipientUserId === senderUserId || senderType === SenderType.SYSTEM) {
+        return;
+      }
+
+      const senderName =
+        senderType === SenderType.CUSTOMER
+          ? customer.user?.name ?? 'Customer'
+          : supplier.companyName;
+      const preview = previewSource.slice(0, 100);
+
+      await this.notificationService.emit({
+        userId: recipientUserId,
+        template: 'NEW_MESSAGE',
+        subject: `New message from ${senderName}`,
+        body: `${preview}${previewSource.length > 100 ? '…' : ''}`,
+        entityType: 'Conversation',
+        entityId: conversationId,
+      });
+    } catch {
+      // best-effort — never fail the send because the bell didn't ring
+    }
   }
 
   /**

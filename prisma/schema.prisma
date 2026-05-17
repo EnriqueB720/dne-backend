@@ -395,6 +395,14 @@ model Quote {
   viewedAt    DateTime?   @map("viewed_at")
   respondedAt DateTime?   @map("responded_at")
 
+  // Time slots offered to the customer for this quote. Stored as
+  // `[{ startsAt: ISOString, endsAt: ISOString }, …]`. When the customer
+  // accepts the quote, they pick one slot — its index is recorded in
+  // `selectedSlotIndex`, and the resulting booking + calendar event use
+  // those bounds.
+  offeredSlots        Json? @map("offered_slots")
+  selectedSlotIndex   Int?  @map("selected_slot_index")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

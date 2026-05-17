@@ -1,6 +1,7 @@
 import { SupplierSelect } from 'src/api/supplier/model';
 import { CustomerSelect } from 'src/api/customer/model';
 import { RequestSelect } from 'src/api/request/model';
+import { QuoteSelect } from 'src/api/quote/model';
 
 interface BookingPrismaSelect {
   bookingId?: boolean;
@@ -28,6 +29,7 @@ interface BookingPrismaSelect {
   supplier?: SupplierSelect;
   customer?: CustomerSelect;
   request?: RequestSelect;
+  quote?: QuoteSelect;
 }
 
 export interface BookingSelect {

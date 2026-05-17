@@ -1,5 +1,6 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
 import { QuoteItemInput } from './quote-item.input';
+import { QuoteSlotInput } from './quote-slot.input';
 
 @InputType()
 export class QuoteCreateInput {
@@ -23,4 +24,12 @@ export class QuoteCreateInput {
 
   @Field(() => [QuoteItemInput], { nullable: true })
   items?: QuoteItemInput[];
+
+  /**
+   * Time windows the supplier is offering. The customer picks one when
+   * accepting the quote. Optional — quotes without slots fall back to the
+   * request's `serviceDate`.
+   */
+  @Field(() => [QuoteSlotInput], { nullable: true })
+  offeredSlots?: QuoteSlotInput[];
 }

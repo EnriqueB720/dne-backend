@@ -1,11 +1,15 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Inject } from '@nestjs/common';
+import { Args, Int, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
+import { PubSub } from 'graphql-subscriptions';
 import { GraphQLFields, IGraphQLFields } from '@decorators';
 
-import { ConversationService } from './conversation.service';
+import { PUB_SUB } from 'src/shared/pubsub/pubsub.module';
+import { ConversationService, MESSAGE_EVENT_CHANNEL } from './conversation.service';
 import {
   Conversation,
   ConversationSelect,
   Message,
+  MessageEvent,
   MessageSelect,
 } from './model';
 import {
@@ -22,7 +26,10 @@ import {
 
 @Resolver(() => Conversation)
 export class ConversationResolver {
-  constructor(private readonly conversationService: ConversationService) {}
+  constructor(
+    private readonly conversationService: ConversationService,
+    @Inject(PUB_SUB) private readonly pubSub: PubSub,
+  ) {}
 
   @Query(() => Conversation)
   public async conversation(
@@ -94,5 +101,24 @@ export class ConversationResolver {
     @GraphQLFields() { fields }: IGraphQLFields<ConversationSelect>,
   ): Promise<Conversation> {
     return await this.conversationService.restore(data, fields);
+  }
+
+  // ── Subscriptions ───────────────────────────────────────────────────
+
+  /**
+   * Live message events for a specific conversation. Subscribers should call
+   * refetch on the conversation's messages query when an event arrives.
+   * Scoped by conversationId so each subscriber only sees their open thread.
+   */
+  @Subscription(() => MessageEvent, {
+    name: 'messageEventForConversation',
+    filter: (payload, variables) =>
+      payload.conversationId === variables.conversationId,
+    resolve: (payload) => payload.messageEvent,
+  })
+  public messageEventForConversation(
+    @Args('conversationId', { type: () => Int }) _conversationId: number,
+  ) {
+    return this.pubSub.asyncIterableIterator(MESSAGE_EVENT_CHANNEL);
   }
 }
