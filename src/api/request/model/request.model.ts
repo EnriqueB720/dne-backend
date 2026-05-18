@@ -2,6 +2,7 @@ import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { Prisma, RequestStatus } from '@prisma/client';
 import { Category } from 'src/api/category/model';
 import { Quote } from 'src/api/quote/model';
+import { Customer } from 'src/api/customer/model';
 
 @ObjectType()
 export class Request {
@@ -61,6 +62,9 @@ export class Request {
 
   @Field(() => [Quote], { nullable: true })
   quotes?: Quote[];
+
+  @Field(() => Customer, { nullable: true })
+  customer?: Customer;
 }
 
 registerEnumType(RequestStatus, {

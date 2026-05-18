@@ -23,6 +23,13 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
       autoSchemaFile: 'schema.gql',
       graphiql: true,
       driver: ApolloDriver,
+      // Enable GraphQL subscriptions over the WebSocket (graphql-ws) transport
+      // on the same /graphql endpoint. The client connects via ws:// instead
+      // of http:// for `subscription` operations and the server upgrades the
+      // connection in place.
+      subscriptions: {
+        'graphql-ws': true,
+      },
     }),
     ScheduleModule.forRoot(),
   ],

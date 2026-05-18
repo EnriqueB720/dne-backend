@@ -1,4 +1,6 @@
 import { QuoteItemSelect } from './quote-item.select.model';
+import { SupplierSelect } from 'src/api/supplier/model';
+import { RequestSelect } from 'src/api/request/model';
 
 interface QuotePrismaSelect {
   quoteId?: boolean;
@@ -11,9 +13,13 @@ interface QuotePrismaSelect {
   status?: boolean;
   viewedAt?: boolean;
   respondedAt?: boolean;
+  offeredSlots?: boolean;
+  selectedSlotIndex?: boolean;
   createdAt?: boolean;
   updatedAt?: boolean;
   items?: QuoteItemSelect;
+  supplier?: SupplierSelect;
+  request?: RequestSelect;
 }
 
 export interface QuoteSelect {

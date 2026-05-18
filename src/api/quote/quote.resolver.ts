@@ -1,9 +1,12 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Inject } from '@nestjs/common';
+import { Args, Int, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
+import { PubSub } from 'graphql-subscriptions';
 import { GraphQLFields, IGraphQLFields } from '@decorators';
 
 import { Booking, BookingSelect } from 'src/api/booking/model';
-import { QuoteService } from './quote.service';
-import { Quote, QuoteSelect } from './model';
+import { PUB_SUB } from 'src/shared/pubsub/pubsub.module';
+import { QUOTE_EVENT_CHANNEL, QuoteService } from './quote.service';
+import { Quote, QuoteEvent, QuoteSelect } from './model';
 import {
   QuoteAcceptInput,
   QuoteArgs,
@@ -16,7 +19,10 @@ import {
 
 @Resolver(() => Quote)
 export class QuoteResolver {
-  constructor(private readonly quoteService: QuoteService) {}
+  constructor(
+    private readonly quoteService: QuoteService,
+    @Inject(PUB_SUB) private readonly pubSub: PubSub,
+  ) {}
 
   @Query(() => Quote)
   public async quote(
@@ -72,5 +78,30 @@ export class QuoteResolver {
     @Args('data') data: QuoteMarkViewedInput,
   ): Promise<number> {
     return await this.quoteService.markRequestQuotesViewed(data.requestId);
+  }
+
+  // ── Subscriptions ───────────────────────────────────────────────────
+
+  /**
+   * Live quote-changed events for the given customer. Subscribers should
+   * call refetch on their list/detail queries when an event arrives.
+   */
+  @Subscription(() => QuoteEvent, {
+    name: 'quoteEventForCustomer',
+    filter: (payload, variables) => payload.customerId === variables.customerId,
+    resolve: (payload) => payload.quoteEvent,
+  })
+  public quoteEventForCustomer(@Args('customerId', { type: () => Int }) _customerId: number) {
+    return this.pubSub.asyncIterableIterator(QUOTE_EVENT_CHANNEL);
+  }
+
+  /** Same, for a supplier. */
+  @Subscription(() => QuoteEvent, {
+    name: 'quoteEventForSupplier',
+    filter: (payload, variables) => payload.supplierId === variables.supplierId,
+    resolve: (payload) => payload.quoteEvent,
+  })
+  public quoteEventForSupplier(@Args('supplierId', { type: () => Int }) _supplierId: number) {
+    return this.pubSub.asyncIterableIterator(QUOTE_EVENT_CHANNEL);
   }
 }
