@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
+import { NotificationModule } from '../notification/notification.module';
 import { BookingResolver } from './booking.resolver';
 import { BookingService } from './booking.service';
 
 @Module({
-  imports: [],
+  imports: [NotificationModule],
   providers: [BookingResolver, BookingService],
   exports: [BookingResolver, BookingService],
 })

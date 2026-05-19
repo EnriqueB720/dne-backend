@@ -1,8 +1,11 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Inject } from '@nestjs/common';
+import { Args, Int, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
+import { PubSub } from 'graphql-subscriptions';
 import { GraphQLFields, IGraphQLFields } from '@decorators';
 
-import { BookingService } from './booking.service';
-import { Booking, BookingSelect } from './model';
+import { PUB_SUB } from 'src/shared/pubsub/pubsub.module';
+import { BOOKING_EVENT_CHANNEL, BookingService } from './booking.service';
+import { Booking, BookingEvent, BookingSelect } from './model';
 import {
   BookingArgs,
   BookingCancelInput,
@@ -13,7 +16,10 @@ import {
 
 @Resolver(() => Booking)
 export class BookingResolver {
-  constructor(private readonly bookingService: BookingService) {}
+  constructor(
+    private readonly bookingService: BookingService,
+    @Inject(PUB_SUB) private readonly pubSub: PubSub,
+  ) {}
 
   @Query(() => Booking)
   public async booking(
@@ -53,5 +59,25 @@ export class BookingResolver {
     @GraphQLFields() { fields }: IGraphQLFields<BookingSelect>,
   ): Promise<Booking> {
     return await this.bookingService.complete(data, fields);
+  }
+
+  // ── Subscriptions ───────────────────────────────────────────────────
+
+  @Subscription(() => BookingEvent, {
+    name: 'bookingEventForCustomer',
+    filter: (payload, variables) => payload.customerId === variables.customerId,
+    resolve: (payload) => payload.bookingEvent,
+  })
+  public bookingEventForCustomer(@Args('customerId', { type: () => Int }) _customerId: number) {
+    return this.pubSub.asyncIterableIterator(BOOKING_EVENT_CHANNEL);
+  }
+
+  @Subscription(() => BookingEvent, {
+    name: 'bookingEventForSupplier',
+    filter: (payload, variables) => payload.supplierId === variables.supplierId,
+    resolve: (payload) => payload.bookingEvent,
+  })
+  public bookingEventForSupplier(@Args('supplierId', { type: () => Int }) _supplierId: number) {
+    return this.pubSub.asyncIterableIterator(BOOKING_EVENT_CHANNEL);
   }
 }

@@ -4,6 +4,7 @@ export * from './quote-accept.input';
 export * from './quote-withdraw.input';
 export * from './quote-mark-viewed.input';
 export * from './quote-item.input';
+export * from './quote-slot.input';
 export * from './quote.args';
 export * from './quotes-by-request.args';
 export * from './quotes-by-supplier.args';
