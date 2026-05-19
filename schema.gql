@@ -133,38 +133,6 @@ type Search {
   post: [Post!]
 }
 
-type Notification {
-  notificationId: Int!
-  userId: Int!
-  channel: NotificationChannel!
-  template: String!
-  subject: String
-  body: String!
-  entityType: String
-  entityId: Int
-  status: NotificationStatus!
-  readAt: DateTime
-  createdAt: DateTime!
-}
-
-"""How a notification is delivered (in-app, email, etc.)"""
-enum NotificationChannel {
-  WHATSAPP
-  EMAIL
-  PUSH
-  IN_APP
-  SMS
-}
-
-"""Delivery lifecycle status of a notification"""
-enum NotificationStatus {
-  QUEUED
-  SENT
-  DELIVERED
-  READ
-  FAILED
-}
-
 type AiMessage {
   messageId: String!
   conversationId: String!
@@ -207,6 +175,38 @@ type AiCompletionResult {
   content: String!
   model: String!
   usage: AiMessageUsage
+}
+
+type Notification {
+  notificationId: Int!
+  userId: Int!
+  channel: NotificationChannel!
+  template: String!
+  subject: String
+  body: String!
+  entityType: String
+  entityId: Int
+  status: NotificationStatus!
+  readAt: DateTime
+  createdAt: DateTime!
+}
+
+"""How a notification is delivered (in-app, email, etc.)"""
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+  PUSH
+  IN_APP
+  SMS
+}
+
+"""Delivery lifecycle status of a notification"""
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
 }
 
 type QuoteItem {
