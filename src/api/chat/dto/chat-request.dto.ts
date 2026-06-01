@@ -34,4 +34,14 @@ export class ChatRequestDto {
   @IsString()
   @MaxLength(4000)
   system?: string;
+
+  /**
+   * Stable system-prompt prefix eligible for provider-side prompt caching.
+   * Keep this identical across turns for cache hits; put per-turn context
+   * in `system` instead.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(8000)
+  cachedSystem?: string;
 }
