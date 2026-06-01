@@ -4,6 +4,7 @@ interface CustomerPrismaSelect {
   customerId?: boolean;
   userId?: boolean;
   defaultCity?: boolean;
+  defaultAddress?: boolean;
   marketingOptIn?: boolean;
   createdAt?: boolean;
   updatedAt?: boolean;

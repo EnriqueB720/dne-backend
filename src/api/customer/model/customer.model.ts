@@ -12,6 +12,9 @@ export class Customer {
   @Field({ nullable: true })
   defaultCity?: string;
 
+  @Field({ nullable: true })
+  defaultAddress?: string;
+
   @Field()
   marketingOptIn: boolean;
 

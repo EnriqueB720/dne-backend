@@ -2,7 +2,7 @@ import { Resolver, Query, Args, Mutation } from '@nestjs/graphql';
 import { User, UserSelect } from './model';
 import { UserService } from './user.service';
 import { GraphQLFields, IGraphQLFields } from '@decorators';
-import { UserArgs, UserCreateInput } from './dto';
+import { UserArgs, UserCreateInput, UserUpdateInput } from './dto';
 
 @Resolver(() => User)
 export class UserResolver {
@@ -22,5 +22,13 @@ export class UserResolver {
     @GraphQLFields() { fields }: IGraphQLFields<UserSelect>,
   ): Promise<User> {
     return await this.userService.create(data, fields);
+  }
+
+  @Mutation(() => User)
+  public async updateUser(
+    @Args('data') data: UserUpdateInput,
+    @GraphQLFields() { fields }: IGraphQLFields<UserSelect>,
+  ): Promise<User> {
+    return await this.userService.update(data, fields);
   }
 }

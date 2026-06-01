@@ -1,7 +1,7 @@
-import { Resolver, Query, Args, Mutation } from '@nestjs/graphql';
+import { Resolver, Query, Args, Int, Mutation } from '@nestjs/graphql';
 import { SupplierService } from './supplier.service';
-import { Supplier, SupplierSelect } from './model';
-import { SupplierArgs, SupplierCreateInput, SupplierSearchInput } from './dto';
+import { Supplier, SupplierDashboardStats, SupplierSelect } from './model';
+import { SupplierArgs, SupplierCreateInput, SupplierSearchInput, SupplierUpdateInput } from './dto';
 import { GraphQLFields, IGraphQLFields } from '@decorators';
 
 @Resolver(() => Supplier)
@@ -37,5 +37,21 @@ export class SupplierResolver {
     @GraphQLFields() { fields }: IGraphQLFields<SupplierSelect>,
   ): Promise<Supplier> {
     return await this.supplierService.create(data, fields);
+  }
+
+  @Mutation(() => Supplier)
+  public async updateSupplier(
+    @Args('data') data: SupplierUpdateInput,
+    @GraphQLFields() { fields }: IGraphQLFields<SupplierSelect>,
+  ): Promise<Supplier> {
+    return await this.supplierService.update(data, fields);
+  }
+
+  /** Aggregate metrics for the supplier workspace dashboard. */
+  @Query(() => SupplierDashboardStats)
+  public async supplierDashboardStats(
+    @Args('supplierId', { type: () => Int }) supplierId: number,
+  ): Promise<SupplierDashboardStats> {
+    return await this.supplierService.getDashboardStats(supplierId);
   }
 }

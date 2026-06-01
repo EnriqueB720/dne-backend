@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { BookingStatus, Prisma, QuoteStatus, RequestStatus } from '@prisma/client';
 
 import { PrismaService } from '@prisma-datasource';
-import { SupplierArgs, SupplierCreateInput, SupplierSearchInput } from './dto';
-import { Supplier, SupplierSelect } from './model';
+import { SupplierArgs, SupplierCreateInput, SupplierSearchInput, SupplierUpdateInput } from './dto';
+import { Supplier, SupplierDashboardStats, SupplierSelect } from './model';
 import { PostService } from '../post/post.service';
 
 @Injectable()
@@ -161,5 +162,163 @@ export class SupplierService {
       if (s?.posts) s.posts = this.postService.parsePostPrice(s.posts);
       return s;
     });
+  }
+
+  public async update(
+    { supplierId, ...data }: SupplierUpdateInput,
+    { select }: SupplierSelect,
+  ): Promise<Supplier> {
+    // Cast: Prisma's strict return type doesn't include the relation shapes
+    // the GraphQL ObjectType declares as eager fields.
+    return (await this.prismaService.supplier.update({
+      where: { supplierId },
+      data,
+      select,
+    })) as unknown as Supplier;
+  }
+
+  /**
+   * Aggregate metrics for the supplier workspace dashboard.
+   *
+   * - `responseRate`   — quotes sent ÷ matched-leads in the last 30d (%)
+   * - `conversionRate` — accepted quotes ÷ (accepted + rejected + expired) (%)
+   * - `activeLeadsCount` — open leads currently matching (city, not yet quoted)
+   * - `mtdEarnings`    — sum of supplierPayout for bookings created this month
+   * - `weeklyLeadCounts` — count of matched requests created on each of the
+   *   last 7 days, oldest → newest, useful for a sparkline / bar chart
+   */
+  public async getDashboardStats(supplierId: number): Promise<SupplierDashboardStats> {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const supplier = await this.prismaService.supplier.findUnique({
+      where: { supplierId },
+      select: { city: true },
+    });
+    if (!supplier) {
+      return {
+        responseRate: 0,
+        conversionRate: 0,
+        activeLeadsCount: 0,
+        mtdEarnings: '0',
+        mtdGross: '0',
+        currency: 'CRC',
+        platformFeeRate: 0.1,
+        weeklyLeadCounts: [0, 0, 0, 0, 0, 0, 0],
+      };
+    }
+
+    // Same permissive city predicate the matcher uses for fan-out.
+    const matchWhere: Prisma.RequestWhereInput = supplier.city
+      ? {
+          OR: [
+            { city: { equals: supplier.city, mode: 'insensitive' } },
+            { city: null },
+          ],
+        }
+      : {};
+
+    const [
+      matchedLast30d,
+      quotesLast30d,
+      conversionBuckets,
+      activeLeadsCount,
+      paidBookings,
+      weeklyLeadRows,
+    ] = await Promise.all([
+      this.prismaService.request.count({
+        where: { ...matchWhere, createdAt: { gte: thirtyDaysAgo } },
+      }),
+      this.prismaService.quote.count({
+        where: { supplierId, createdAt: { gte: thirtyDaysAgo } },
+      }),
+      this.prismaService.quote.groupBy({
+        by: ['status'],
+        where: {
+          supplierId,
+          status: { in: [QuoteStatus.ACCEPTED, QuoteStatus.REJECTED, QuoteStatus.EXPIRED] },
+        },
+        _count: true,
+      }),
+      this.prismaService.request.count({
+        where: {
+          ...matchWhere,
+          status: {
+            in: [
+              RequestStatus.MATCHING,
+              RequestStatus.AWAITING_QUOTES,
+              RequestStatus.QUOTES_RECEIVED,
+            ],
+          },
+          quotes: { none: { supplierId } },
+        },
+      }),
+      this.prismaService.booking.findMany({
+        where: {
+          supplierId,
+          createdAt: { gte: startOfMonth },
+          status: {
+            in: [BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS, BookingStatus.COMPLETED],
+          },
+        },
+        select: { supplierPayout: true, totalPrice: true, currency: true },
+      }),
+      this.prismaService.request.findMany({
+        where: {
+          ...matchWhere,
+          createdAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+        },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    // Response rate
+    const responseRate =
+      matchedLast30d > 0 ? Math.round((quotesLast30d / matchedLast30d) * 100) : 0;
+
+    // Conversion rate from grouped counts
+    const totals = conversionBuckets.reduce(
+      (acc, b) => acc + (b._count as unknown as number),
+      0,
+    );
+    const accepted =
+      conversionBuckets.find((b) => b.status === QuoteStatus.ACCEPTED)?._count ?? 0;
+    const conversionRate =
+      totals > 0 ? Math.round(((accepted as unknown as number) / totals) * 100) : 0;
+
+    // Earnings — both net (supplierPayout) and gross (totalPrice), using the
+    // first booking's currency as the display label.
+    let mtdEarningsDec = new Prisma.Decimal(0);
+    let mtdGrossDec = new Prisma.Decimal(0);
+    for (const b of paidBookings) {
+      mtdEarningsDec = mtdEarningsDec.add(b.supplierPayout);
+      mtdGrossDec = mtdGrossDec.add(b.totalPrice);
+    }
+    const currency = paidBookings[0]?.currency ?? 'CRC';
+
+    // Weekly bucket: 7 day-of-week buckets, oldest first
+    const weeklyLeadCounts = new Array(7).fill(0) as number[];
+    for (const r of weeklyLeadRows) {
+      const dayIndex = Math.min(
+        6,
+        Math.max(0, Math.floor((now.getTime() - r.createdAt.getTime()) / (24 * 60 * 60 * 1000))),
+      );
+      // Reverse so newest is at the end of the array.
+      weeklyLeadCounts[6 - dayIndex] += 1;
+    }
+
+    return {
+      responseRate,
+      conversionRate,
+      activeLeadsCount,
+      mtdEarnings: mtdEarningsDec.toString(),
+      mtdGross: mtdGrossDec.toString(),
+      currency,
+      // Kept in sync with PLATFORM_FEE_RATE in quote.service.ts. If that
+      // changes, change this too (one place to look for the displayed %).
+      platformFeeRate: 0.1,
+      weeklyLeadCounts,
+    };
   }
 }

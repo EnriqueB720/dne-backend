@@ -3,6 +3,9 @@ import { Prisma } from '@prisma/client';
 import { Post } from 'src/api/post/model';
 import { User } from 'src/api/user/model';
 import { Service } from 'src/api/service/model';
+import { Category } from 'src/api/category/model';
+import { Review } from './review.model';
+import { SupplierCategory } from './supplier-category.model';
 
 @ObjectType()
 export class Supplier {
@@ -65,4 +68,10 @@ export class Supplier {
 
   @Field(() => [Post], { nullable: true })
   posts?: Post[];
+
+  @Field(() => [SupplierCategory], { nullable: true })
+  categories?: SupplierCategory[];
+
+  @Field(() => [Review], { nullable: true })
+  reviewsReceived?: Review[];
 }
