@@ -2,9 +2,15 @@ import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { SUPPORTED_MODELS, SupportedModel } from './chat-request.dto';
 
 export class CreateConversationDto {
+  /**
+   * Optional from the GraphQL/auth path (the resolver supplies userId
+   * instead). Still required when calling through the legacy REST routes
+   * that only know about deviceId.
+   */
+  @IsOptional()
   @IsString()
   @MaxLength(128)
-  deviceId: string;
+  deviceId?: string;
 
   @IsString()
   @MaxLength(255)
@@ -36,9 +42,15 @@ export class SendMessageDto {
   @IsIn(SUPPORTED_MODELS as unknown as string[])
   model?: SupportedModel;
 
-  /** Optional system prompt override */
+  /** Per-turn (dynamic) system prompt — never cached */
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   system?: string;
+
+  /** Stable system-prompt prefix eligible for provider-side prompt caching */
+  @IsOptional()
+  @IsString()
+  @MaxLength(8000)
+  cachedSystem?: string;
 }

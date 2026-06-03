@@ -47,6 +47,7 @@ model User {
   notifications   Notification[]
   searchLogs      SearchLog[]
   conversationStates ConversationParticipantState[]
+  aiConversations AiConversation[]
 
   @@index([email])
   @@index([phone])
@@ -585,6 +586,11 @@ model AiConversation {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  // Optional link to authenticated user — populated when chat is started while logged in.
+  // Nullable so guest (deviceId-only) flows still work.
+  userId Int?  @map("user_id")
+  user   User? @relation(fields: [userId], references: [userId])
+
   // Optional link to a Request (when this AI chat is intent-gathering for a request)
   requestId Int?     @unique @map("request_id")
   request   Request? @relation(fields: [requestId], references: [requestId])
@@ -592,6 +598,7 @@ model AiConversation {
   messages AiMessage[]
 
   @@index([deviceId])
+  @@index([userId, updatedAt])
   @@map("ai_conversation")
 }
 

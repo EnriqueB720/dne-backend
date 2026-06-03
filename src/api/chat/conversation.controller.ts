@@ -7,7 +7,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
 } from '@nestjs/common';
 import { ConversationService } from './conversation.service';
 import {
@@ -16,70 +15,67 @@ import {
   SendMessageDto,
 } from './dto';
 
+/**
+ * REST surface kept for backwards compatibility (guest / deviceId-based
+ * clients that haven't migrated to the GraphQL flow yet). New work should
+ * use the AiConversationResolver, which is auth-aware.
+ */
 @Controller('chat/conversations')
 export class ConversationController {
   constructor(private readonly convService: ConversationService) {}
 
-  /** List all conversations for a device */
   @Get()
   list(@Headers('x-device-id') deviceId: string) {
-    return this.convService.listConversations(deviceId ?? '');
+    return this.convService.listConversations({ deviceId: deviceId ?? '' });
   }
 
-  /** Create a new conversation */
   @Post()
   create(@Body() dto: CreateConversationDto) {
-    return this.convService.createConversation(dto);
+    return this.convService.createConversation(dto, { deviceId: dto.deviceId });
   }
 
-  /** Get a single conversation (with all messages) */
   @Get(':id')
-  getOne(
-    @Param('id') id: string,
-    @Headers('x-device-id') deviceId: string,
-  ) {
-    return this.convService.getConversation(id, deviceId ?? '');
+  getOne(@Param('id') id: string, @Headers('x-device-id') deviceId: string) {
+    return this.convService.getConversation(id, { deviceId: deviceId ?? '' });
   }
 
-  /** Update conversation title or model */
   @Patch(':id')
   update(
     @Param('id') id: string,
     @Headers('x-device-id') deviceId: string,
     @Body() dto: UpdateConversationDto,
   ) {
-    return this.convService.updateConversation(id, deviceId ?? '', dto);
+    return this.convService.updateConversation(
+      id,
+      { deviceId: deviceId ?? '' },
+      dto,
+    );
   }
 
-  /** Hard-delete a conversation and all its messages */
   @Delete(':id')
-  remove(
-    @Param('id') id: string,
-    @Headers('x-device-id') deviceId: string,
-  ) {
-    return this.convService.deleteConversation(id, deviceId ?? '');
+  remove(@Param('id') id: string, @Headers('x-device-id') deviceId: string) {
+    return this.convService.deleteConversation(id, {
+      deviceId: deviceId ?? '',
+    });
   }
 
-  /** Send a user message and get the AI reply */
   @Post(':id/messages')
   sendMessage(
     @Param('id') id: string,
     @Headers('x-device-id') deviceId: string,
     @Body() dto: SendMessageDto,
   ) {
-    return this.convService.sendMessage(id, deviceId ?? '', dto);
+    return this.convService.sendMessage(id, { deviceId: deviceId ?? '' }, dto);
   }
 
-  /** Fetch all messages in a conversation */
   @Get(':id/messages')
   getMessages(
     @Param('id') id: string,
     @Headers('x-device-id') deviceId: string,
   ) {
-    return this.convService.getMessages(id, deviceId ?? '');
+    return this.convService.getMessages(id, { deviceId: deviceId ?? '' });
   }
 
-  /** Persist provider cards JSON onto a specific message */
   @Patch(':id/messages/:msgId')
   updateMessageProviders(
     @Param('id') id: string,
@@ -90,7 +86,7 @@ export class ConversationController {
     return this.convService.updateMessageProviders(
       id,
       msgId,
-      deviceId ?? '',
+      { deviceId: deviceId ?? '' },
       providersJson,
     );
   }

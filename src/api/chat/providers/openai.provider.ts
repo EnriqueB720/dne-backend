@@ -17,6 +17,7 @@ export class OpenAiProvider implements ChatProvider {
   async send(
     messages: ChatMessageDto[],
     system?: string,
+    cachedSystem?: string,
   ): Promise<ChatResponseDto> {
     if (!this.client) {
       throw new InternalServerErrorException(
@@ -24,8 +25,15 @@ export class OpenAiProvider implements ChatProvider {
       );
     }
 
+    // OpenAI caches long prompt prefixes automatically (no explicit
+    // cache_control API), so we just concatenate the stable prefix and the
+    // dynamic grounding into one system message.
+    const fullSystem = [cachedSystem, system]
+      .filter((s): s is string => !!s)
+      .join('\n\n');
+
     const payload: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-    if (system) payload.push({ role: 'system', content: system });
+    if (fullSystem) payload.push({ role: 'system', content: fullSystem });
     for (const m of messages) {
       payload.push({ role: m.role, content: m.content });
     }
