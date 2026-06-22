@@ -17,7 +17,8 @@ export class User {
   @Field()
   name?: string;
 
-  @Field()
+  // Nullable: OAuth users have no phone until they finish onboarding.
+  @Field({ nullable: true })
   phone?: string;
 
   @Field(() => Language)
