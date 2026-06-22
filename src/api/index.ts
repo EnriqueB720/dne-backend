@@ -12,6 +12,8 @@ import { BookingModule } from './booking/booking.module';
 import { CalendarEventModule } from './calendar-event/calendar-event.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { NotificationModule } from './notification/notification.module';
+import { FavoriteModule } from './favorite/favorite.module';
+import { CustomerModule } from './customer/customer.module';
 
 
 
@@ -30,4 +32,6 @@ export {
   CalendarEventModule,
   ConversationModule,
   NotificationModule,
+  FavoriteModule,
+  CustomerModule,
 }

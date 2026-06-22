@@ -1,6 +1,8 @@
 import { PostSelect } from 'src/api/post/model';
 import { UserSelect } from 'src/api/user/model';
 import { ServiceSelect } from 'src/api/service/model';
+import { ReviewSelect } from './review.select.model';
+import { SupplierCategorySelect } from './supplier-category.select.model';
 
 interface SupplierPrismaSelect {
   supplierId?: boolean;
@@ -23,6 +25,8 @@ interface SupplierPrismaSelect {
   premium?: boolean;
   services?: ServiceSelect;
   posts?: PostSelect;
+  categories?: SupplierCategorySelect;
+  reviewsReceived?: ReviewSelect;
 }
 
 export interface SupplierSelect {

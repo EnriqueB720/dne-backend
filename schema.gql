@@ -56,6 +56,28 @@ enum PricingModel {
   CUSTOM
 }
 
+type Review {
+  reviewId: Int!
+  bookingId: Int!
+  customerId: Int!
+  supplierId: Int!
+  rating: Int!
+  text: String
+  ratingQuality: Int
+  ratingCommunication: Int
+  ratingValue: Int
+  ratingPunctuality: Int
+  supplierResponse: String
+  createdAt: DateTime!
+}
+
+type SupplierCategory {
+  supplierId: Int!
+  categoryId: Int!
+  isPrimary: Boolean!
+  category: Category
+}
+
 type Supplier {
   supplierId: Float!
   user: User
@@ -77,12 +99,26 @@ type Supplier {
   premium: Boolean
   services: [Service!]
   posts: [Post!]
+  categories: [SupplierCategory!]
+  reviewsReceived: [Review!]
+}
+
+type SupplierDashboardStats {
+  responseRate: Float!
+  conversionRate: Float!
+  activeLeadsCount: Int!
+  mtdEarnings: String!
+  mtdGross: String!
+  currency: String!
+  platformFeeRate: Float!
+  weeklyLeadCounts: [Int!]!
 }
 
 type Customer {
   customerId: Float!
   userId: Float!
   defaultCity: String
+  defaultAddress: String
   marketingOptIn: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -446,6 +482,22 @@ type MessageEvent {
   senderUserId: Int!
 }
 
+type Favorite {
+  favoriteId: Int!
+  customerId: Int!
+  supplierId: Int!
+  notes: String
+  createdAt: DateTime!
+  supplier: Supplier
+}
+
+type FavoriteToggleResult {
+  favoriteId: Int
+  customerId: Int!
+  supplierId: Int!
+  wasAdded: Boolean!
+}
+
 type LoginOutput {
   access_token: String!
   expiresAt: DateTime!
@@ -462,6 +514,7 @@ type Query {
   supplier(where: SupplierWhereInput!): Supplier!
   suppliers: [Supplier!]!
   searchSuppliers(data: SupplierSearchInput!): [Supplier!]!
+  supplierDashboardStats(supplierId: Int!): SupplierDashboardStats!
   category(where: CategoryWhereInput!): Category!
   pricing(where: PricingWhereInput!): Pricing!
   subscription(where: SubscriptionWhereInput!): PlanSubscription!
@@ -486,6 +539,8 @@ type Query {
   conversationsByCustomer(customerId: Int!, viewerUserId: Int!, status: ConversationStatus): [Conversation!]!
   conversationsBySupplier(supplierId: Int!, viewerUserId: Int!, status: ConversationStatus): [Conversation!]!
   messagesByConversation(conversationId: Int!, limit: Int): [Message!]!
+  favoritesByCustomer(customerId: Int!): [Favorite!]!
+  customer(where: CustomerWhereInput!): Customer!
 }
 
 input UserWhereInput {
@@ -552,8 +607,14 @@ input ConversationWhereInput {
   conversationId: Int
 }
 
+input CustomerWhereInput {
+  customerId: Int
+  userId: Int
+}
+
 type Mutation {
   createUser(data: UserCreateInput!): User!
+  updateUser(data: UserUpdateInput!): User!
   createPost(data: PostCreateInput!): Post!
   updatePost(data: PostUpdateInput!, where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
   deletePost(whereUnique: PostWhereUniqueInput!): Boolean!
@@ -561,6 +622,7 @@ type Mutation {
   socialLogin(data: SocialLoginInput!): LoginOutput!
   completeOnboarding(data: CompleteOnboardingInput!): LoginOutput!
   createSupplier(data: SupplierCreateInput!): Supplier!
+  updateSupplier(data: SupplierUpdateInput!): Supplier!
   createCategory(data: CategoryCreateInput!): Category!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): PlanSubscription!
@@ -592,6 +654,8 @@ type Mutation {
   markMessagesAsRead(data: MarkMessagesReadInput!): Float!
   archiveConversation(data: ConversationArchiveInput!): Conversation!
   restoreConversation(data: ConversationRestoreInput!): Conversation!
+  toggleFavorite(data: FavoriteToggleInput!): FavoriteToggleResult!
+  updateCustomer(data: CustomerUpdateInput!): Customer!
 }
 
 input UserCreateInput {
@@ -611,6 +675,14 @@ input SubscriptionCreateNestedInput {
   startDate: DateTime!
   endDate: DateTime!
   status: String!
+}
+
+input UserUpdateInput {
+  userId: Int!
+  name: String
+  phone: String
+  country: String
+  profilePicture: String
 }
 
 input PostCreateInput {
@@ -655,6 +727,22 @@ input CompleteOnboardingInput {
 input SupplierCreateInput {
   companyName: String!
   userId: Float
+}
+
+input SupplierUpdateInput {
+  supplierId: Int!
+  companyName: String
+  slug: String
+  tagline: String
+  description: String
+  businessPhone: String
+  businessEmail: String
+  whatsappNumber: String
+  websiteUrl: String
+  city: String
+  address: String
+  minCapacity: Int
+  maxCapacity: Int
 }
 
 input CategoryCreateInput {
@@ -850,6 +938,19 @@ input ConversationArchiveInput {
 input ConversationRestoreInput {
   conversationId: Int!
   userId: Int!
+}
+
+input FavoriteToggleInput {
+  customerId: Int!
+  supplierId: Int!
+  notes: String
+}
+
+input CustomerUpdateInput {
+  customerId: Int!
+  defaultCity: String
+  defaultAddress: String
+  marketingOptIn: Boolean
 }
 
 type Subscription {
