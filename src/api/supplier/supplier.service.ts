@@ -350,6 +350,8 @@ export class SupplierService {
       platformFeeRate: 0.1,
       weeklyLeadCounts,
     };
+  }
+
   /** Lowercase + strip diacritics so "San José" and "san jose" compare equal. */
   private normalizeForMatch(value: string): string {
     return value
