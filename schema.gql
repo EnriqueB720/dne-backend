@@ -129,7 +129,7 @@ type User {
   userId: Float!
   email: String!
   name: String!
-  phone: String!
+  phone: String
   language: Language!
   country: String!
   role: Role!
@@ -619,6 +619,8 @@ type Mutation {
   updatePost(data: PostUpdateInput!, where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
   deletePost(whereUnique: PostWhereUniqueInput!): Boolean!
   signup(data: SignUpInput!): User!
+  socialLogin(data: SocialLoginInput!): LoginOutput!
+  completeOnboarding(data: CompleteOnboardingInput!): LoginOutput!
   createSupplier(data: SupplierCreateInput!): Supplier!
   updateSupplier(data: SupplierUpdateInput!): Supplier!
   createCategory(data: CategoryCreateInput!): Category!
@@ -708,6 +710,18 @@ input SignUpInput {
   role: String
   companyName: String
   profilePicture: String
+}
+
+input SocialLoginInput {
+  provider: String!
+  token: String!
+}
+
+input CompleteOnboardingInput {
+  role: String!
+  companyName: String
+  phone: String
+  country: String
 }
 
 input SupplierCreateInput {
