@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { BookingStatus, Prisma, QuoteStatus, RequestStatus } from '@prisma/client';
+import { BookingStatus, Prisma, PromotionTier, QuoteStatus, RequestStatus } from '@prisma/client';
 
 import { PrismaService } from '@prisma-datasource';
 import { SupplierArgs, SupplierCreateInput, SupplierSearchInput, SupplierUpdateInput } from './dto';
@@ -155,6 +155,12 @@ export class SupplierService {
     // GraphQL response only serializes what the query requested.
     const mergedSelect: any = { ...(select ?? {}) };
     mergedSelect.city = true;
+    // Always pull the promotion fields too — the JS-side reranker below
+    // promotes FEATURED-active suppliers above their peers regardless of
+    // what the GraphQL caller asked for.
+    mergedSelect.promotionTier = true;
+    mergedSelect.promotionStartDate = true;
+    mergedSelect.promotionEndDate = true;
     if (!mergedSelect.serviceAreas) {
       mergedSelect.serviceAreas = { select: { city: true } };
     }
@@ -187,6 +193,24 @@ export class SupplierService {
       // City matches first, then the rest — both already rating-ordered.
       ranked = [...inCity, ...elsewhere];
     }
+
+    // Sponsored boost. Within the already-ranked list, promote suppliers
+    // whose `promotionTier = FEATURED` is currently active (start <= now,
+    // end null or in the future) above their non-featured peers — while
+    // preserving the relative order set above (so city + rating still win
+    // among featured-vs-featured and non-vs-non).
+    const now = Date.now();
+    const isActiveFeatured = (s: any): boolean => {
+      if (s?.promotionTier !== PromotionTier.FEATURED) return false;
+      const start = s?.promotionStartDate ? new Date(s.promotionStartDate).getTime() : null;
+      const end = s?.promotionEndDate ? new Date(s.promotionEndDate).getTime() : null;
+      if (start !== null && start > now) return false;
+      if (end !== null && end < now) return false;
+      return true;
+    };
+    const featured = ranked.filter(isActiveFeatured);
+    const rest = ranked.filter((s) => !isActiveFeatured(s));
+    ranked = [...featured, ...rest];
 
     return ranked.slice(0, take).map((s) => {
       if (s?.posts) s.posts = this.postService.parsePostPrice(s.posts);

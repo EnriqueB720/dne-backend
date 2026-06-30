@@ -97,10 +97,18 @@ type Supplier {
   maxCapacity: Float
   verified: Boolean
   premium: Boolean
+  promotionTier: PromotionTier!
+  promotionStartDate: DateTime
+  promotionEndDate: DateTime
   services: [Service!]
   posts: [Post!]
   categories: [SupplierCategory!]
   reviewsReceived: [Review!]
+}
+
+enum PromotionTier {
+  NONE
+  FEATURED
 }
 
 type SupplierDashboardStats {
@@ -498,6 +506,47 @@ type FavoriteToggleResult {
   wasAdded: Boolean!
 }
 
+type AdminStats {
+  totalUsers: Int!
+  totalCustomers: Int!
+  totalSuppliers: Int!
+  totalBookings: Int!
+  mtdRevenue: String!
+  allTimeRevenue: String!
+  currency: String!
+}
+
+type TopSupplierRow {
+  supplierId: Int!
+  companyName: String!
+  city: String
+  bookingCount: Int!
+  quoteCount: Int!
+  grossRevenue: String!
+  rating: String
+}
+
+type AiUsageBreakdownRow {
+  modelName: String!
+  requests: Int!
+  inputTokens: Int!
+  outputTokens: Int!
+  costUsd: String!
+}
+
+type SupplierPromotionResult {
+  supplierId: Int!
+  promotionTier: PromotionTier!
+  promotionStartDate: DateTime
+  promotionEndDate: DateTime
+}
+
+type RevenueByDayRow {
+  day: String!
+  platformFee: String!
+  bookings: Int!
+}
+
 type LoginOutput {
   access_token: String!
   expiresAt: DateTime!
@@ -541,6 +590,10 @@ type Query {
   messagesByConversation(conversationId: Int!, limit: Int): [Message!]!
   favoritesByCustomer(customerId: Int!): [Favorite!]!
   customer(where: CustomerWhereInput!): Customer!
+  adminStats(adminUserId: Int!): AdminStats!
+  topSuppliers(adminUserId: Int!, limit: Int = 10): [TopSupplierRow!]!
+  aiUsageBreakdown(adminUserId: Int!, daysBack: Int = 30): [AiUsageBreakdownRow!]!
+  revenueByDay(adminUserId: Int!, daysBack: Int = 30): [RevenueByDayRow!]!
 }
 
 input UserWhereInput {
@@ -656,6 +709,7 @@ type Mutation {
   restoreConversation(data: ConversationRestoreInput!): Conversation!
   toggleFavorite(data: FavoriteToggleInput!): FavoriteToggleResult!
   updateCustomer(data: CustomerUpdateInput!): Customer!
+  setSupplierPromotion(data: SetSupplierPromotionInput!): SupplierPromotionResult!
 }
 
 input UserCreateInput {
@@ -951,6 +1005,14 @@ input CustomerUpdateInput {
   defaultCity: String
   defaultAddress: String
   marketingOptIn: Boolean
+}
+
+input SetSupplierPromotionInput {
+  adminUserId: Int!
+  supplierId: Int!
+  tier: PromotionTier!
+  startDate: DateTime
+  endDate: DateTime
 }
 
 type Subscription {

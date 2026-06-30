@@ -54,6 +54,7 @@ model User {
   conversationStates ConversationParticipantState[]
   aiConversations AiConversation[]
   oauthAccounts   OAuthAccount[]
+  aiUsageLogs     AiUsageLog[]
 
   @@index([email])
   @@index([phone])
@@ -209,6 +210,13 @@ model Supplier {
   verified   Boolean   @default(false)
   verifiedAt DateTime? @map("verified_at")
   premium    Boolean   @default(false)
+
+  // Sponsored placement — admin sets `promotionTier = FEATURED` to boost
+  // this supplier above its peers in search results, with an optional end
+  // date that the ranking respects (treats expired promotions as NONE).
+  promotionTier       PromotionTier @default(NONE) @map("promotion_tier")
+  promotionStartDate  DateTime?     @map("promotion_start_date")
+  promotionEndDate    DateTime?     @map("promotion_end_date")
 
   source           SupplierSource @default(SELF_SIGNUP)
   sourceExternalId String?        @map("source_external_id")
@@ -820,6 +828,30 @@ model Notification {
   @@map("notification")
 }
 
+/**
+ * One row per AI model invocation, written fire-and-forget after each chat
+ * call. Used by the admin dashboard to show "most-used AI model", token
+ * volume, and rough cost. `userId` is nullable because anonymous chat is
+ * possible. `costUsd` is computed server-side from per-model pricing so the
+ * admin doesn't need to refer to provider dashboards for ballpark numbers.
+ */
+model AiUsageLog {
+  aiUsageLogId Int    @id @default(autoincrement()) @map("ai_usage_log_id")
+  userId       Int?   @map("user_id")
+  user         User?  @relation(fields: [userId], references: [userId])
+
+  modelName    String @map("model_name")
+  inputTokens  Int    @default(0) @map("input_tokens")
+  outputTokens Int    @default(0) @map("output_tokens")
+  costUsd      Decimal @default(0) @map("cost_usd") @db.Decimal(12, 6)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([modelName, createdAt])
+  @@index([createdAt])
+  @@map("ai_usage_log")
+}
+
 model MediaAsset {
   mediaAssetId Int @id @default(autoincrement()) @map("media_asset_id")
 
@@ -980,6 +1012,16 @@ enum SupplierSource {
   REGISTRO_NACIONAL
   MANUAL_IMPORT
   REFERRAL
+}
+
+/**
+ * Sponsored-placement tier on a Supplier. Admins flip this manually for now
+ * (Stripe / self-serve flow comes later). The `searchSuppliers` ranking
+ * gives a boost when tier=FEATURED and (now is within promotion dates).
+ */
+enum PromotionTier {
+  NONE
+  FEATURED
 }
 
 enum PricingModel {

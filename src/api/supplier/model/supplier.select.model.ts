@@ -23,6 +23,9 @@ interface SupplierPrismaSelect {
   maxCapacity?: boolean;
   verified?: boolean;
   premium?: boolean;
+  promotionTier?: boolean;
+  promotionStartDate?: boolean;
+  promotionEndDate?: boolean;
   services?: ServiceSelect;
   posts?: PostSelect;
   categories?: SupplierCategorySelect;

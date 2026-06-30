@@ -1,11 +1,16 @@
-import { Field, ObjectType } from '@nestjs/graphql';
-import { Prisma } from '@prisma/client';
+import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { Prisma, PromotionTier } from '@prisma/client';
 import { Post } from 'src/api/post/model';
 import { User } from 'src/api/user/model';
 import { Service } from 'src/api/service/model';
 import { Category } from 'src/api/category/model';
 import { Review } from './review.model';
 import { SupplierCategory } from './supplier-category.model';
+
+registerEnumType(PromotionTier, {
+  name: 'PromotionTier',
+  description: 'Sponsored-placement tier on a supplier',
+});
 
 @ObjectType()
 export class Supplier {
@@ -62,6 +67,15 @@ export class Supplier {
 
   @Field({ nullable: true })
   premium?: boolean;
+
+  @Field(() => PromotionTier)
+  promotionTier: PromotionTier;
+
+  @Field({ nullable: true })
+  promotionStartDate?: Date;
+
+  @Field({ nullable: true })
+  promotionEndDate?: Date;
 
   @Field(() => [Service], { nullable: true })
   services?: Service[];
