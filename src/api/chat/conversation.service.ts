@@ -189,6 +189,9 @@ export class ConversationService {
       messages: contextMessages,
       system: dto.system,
       cachedSystem: dto.cachedSystem,
+      // Attribute the AI usage row to the conversation's owner so the
+      // admin dashboard can see per-user spend if needed.
+      userId: conv.userId ?? undefined,
     });
 
     const saved = await this.prisma.aiMessage.create({

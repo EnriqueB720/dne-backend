@@ -14,6 +14,7 @@ import { ConversationModule } from './conversation/conversation.module';
 import { NotificationModule } from './notification/notification.module';
 import { FavoriteModule } from './favorite/favorite.module';
 import { CustomerModule } from './customer/customer.module';
+import { AdminModule } from './admin/admin.module';
 
 
 
@@ -34,4 +35,5 @@ export {
   NotificationModule,
   FavoriteModule,
   CustomerModule,
+  AdminModule,
 }

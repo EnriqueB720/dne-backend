@@ -10,6 +10,7 @@ import {
   GeminiProvider,
   OpenAiProvider,
 } from './providers';
+import { AiUsageLogModule } from '../ai-usage-log/ai-usage-log.module';
 
 // NOTE: JwtStrategy is registered globally by AuthModule (which AppModule
 // imports). The strategy auto-registers with passport on instantiation, so
@@ -19,6 +20,7 @@ import {
 // ChatController is the legacy REST surface (`POST /chat`) kept for
 // back-compat; ChatResolver is the GraphQL replacement (`aiComplete`).
 @Module({
+  imports: [AiUsageLogModule],
   controllers: [ChatController, ConversationController],
   providers: [
     ChatService,

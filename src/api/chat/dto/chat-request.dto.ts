@@ -4,6 +4,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
@@ -44,4 +45,13 @@ export class ChatRequestDto {
   @IsString()
   @MaxLength(8000)
   cachedSystem?: string;
+
+  /**
+   * Optional userId — passed through to the AI usage logger so the admin
+   * dashboard can attribute token spend to specific users. Stays optional
+   * because anonymous chat completion is allowed (e.g. signed-out preview).
+   */
+  @IsOptional()
+  @IsInt()
+  userId?: number;
 }

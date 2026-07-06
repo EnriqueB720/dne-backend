@@ -6,6 +6,7 @@ import {
   GeminiProvider,
   OpenAiProvider,
 } from './providers';
+import { AiUsageLogService } from '../ai-usage-log/ai-usage-log.service';
 
 /** Hard ceiling on a single provider call before we give up on it. */
 const PROVIDER_TIMEOUT_MS = 30_000;
@@ -21,6 +22,7 @@ export class ChatService {
     anthropic: AnthropicProvider,
     openai: OpenAiProvider,
     gemini: GeminiProvider,
+    private readonly aiUsageLogService: AiUsageLogService,
   ) {
     this.registry = new Map<SupportedModel, ChatProvider>([
       [anthropic.key, anthropic],
@@ -45,10 +47,20 @@ export class ChatService {
     for (const provider of chain) {
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
-          return await this.withTimeout(
+          const res = await this.withTimeout(
             provider.send(req.messages, req.system, req.cachedSystem),
             PROVIDER_TIMEOUT_MS,
           );
+          // Log usage fire-and-forget so the admin dashboard has data.
+          // Uses the model that ACTUALLY served the request (may differ
+          // from req.model if we fell back to a different provider).
+          this.aiUsageLogService.log({
+            userId: req.userId ?? null,
+            modelName: res.model ?? req.model,
+            inputTokens: res.usage?.inputTokens,
+            outputTokens: res.usage?.outputTokens,
+          });
+          return res;
         } catch (err) {
           lastError = err;
           const label = `${provider.key} attempt ${attempt}/${MAX_ATTEMPTS}`;
