@@ -182,7 +182,13 @@ model Supplier {
   user        User   @relation(fields: [userId], references: [userId])
   companyName String
 
-  // NOTE: descriptionEmbedding (vector(1536)) deferred until pgvector is installed.
+  // Semantic-search embedding of `companyName + tagline + description +
+  // services + categories`, produced by OpenAI text-embedding-3-small
+  // (1536 dims). Prisma has no native vector type, so it's typed as
+  // Unsupported — reads/writes go through raw SQL in EmbeddingService.
+  // Nullable so new suppliers exist before the async embed lands, and
+  // so the backfill script can identify not-yet-embedded rows.
+  descriptionEmbedding Unsupported("vector(1536)")? @map("description_embedding")
 
   slug        String? @unique
   tagline     String?
