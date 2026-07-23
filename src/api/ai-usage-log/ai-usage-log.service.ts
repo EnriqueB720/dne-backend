@@ -18,6 +18,8 @@ const MODEL_PRICING_PER_MILLION_TOKENS: Record<
   'claude-haiku': { input: 0.8, output: 4 },
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
   'gemini-flash': { input: 0.075, output: 0.3 },
+  // Embedding models — one-way, output tokens always 0.
+  'text-embedding-3-small': { input: 0.02, output: 0 },
 };
 
 function estimateCostUsd(

@@ -685,6 +685,8 @@ async function main() {
             minUnits: svc.minUnits ?? null,
             maxUnits: svc.maxUnits ?? null,
             unitLabel: svc.unitLabel ?? null,
+            tags: [],
+            inclusions: [],
           },
         });
       }
