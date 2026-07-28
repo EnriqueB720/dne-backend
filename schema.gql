@@ -56,6 +56,17 @@ enum PricingModel {
   CUSTOM
 }
 
+type Customer {
+  customerId: Float!
+  userId: Float!
+  defaultCity: String
+  defaultAddress: String
+  marketingOptIn: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  user: User
+}
+
 type Review {
   reviewId: Int!
   bookingId: Int!
@@ -69,6 +80,7 @@ type Review {
   ratingPunctuality: Int
   supplierResponse: String
   createdAt: DateTime!
+  customer: Customer
 }
 
 type SupplierCategory {
@@ -120,17 +132,6 @@ type SupplierDashboardStats {
   currency: String!
   platformFeeRate: Float!
   weeklyLeadCounts: [Int!]!
-}
-
-type Customer {
-  customerId: Float!
-  userId: Float!
-  defaultCity: String
-  defaultAddress: String
-  marketingOptIn: Boolean!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  user: User
 }
 
 type User {
@@ -369,6 +370,7 @@ type Booking {
   customer: Customer
   request: Request
   quote: Quote
+  review: Review
 }
 
 """Lifecycle status of a booking"""
@@ -710,6 +712,9 @@ type Mutation {
   toggleFavorite(data: FavoriteToggleInput!): FavoriteToggleResult!
   updateCustomer(data: CustomerUpdateInput!): Customer!
   setSupplierPromotion(data: SetSupplierPromotionInput!): SupplierPromotionResult!
+  createReview(data: ReviewCreateInput!): Review!
+  updateReview(data: ReviewUpdateInput!): Review!
+  deleteReview(data: ReviewDeleteInput!): Boolean!
 }
 
 input UserCreateInput {
@@ -1013,6 +1018,33 @@ input SetSupplierPromotionInput {
   tier: PromotionTier!
   startDate: DateTime
   endDate: DateTime
+}
+
+input ReviewCreateInput {
+  bookingId: Int!
+  customerId: Int!
+  rating: Int!
+  text: String
+  ratingQuality: Int
+  ratingCommunication: Int
+  ratingValue: Int
+  ratingPunctuality: Int
+}
+
+input ReviewUpdateInput {
+  reviewId: Int!
+  customerId: Int!
+  rating: Int!
+  text: String
+  ratingQuality: Int
+  ratingCommunication: Int
+  ratingValue: Int
+  ratingPunctuality: Int
+}
+
+input ReviewDeleteInput {
+  reviewId: Int!
+  customerId: Int!
 }
 
 type Subscription {

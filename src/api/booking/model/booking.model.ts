@@ -1,6 +1,6 @@
 import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { BookingStatus, PaymentStatus, Prisma } from '@prisma/client';
-import { Supplier } from 'src/api/supplier/model';
+import { Review, Supplier } from 'src/api/supplier/model';
 import { Customer } from 'src/api/customer/model';
 import { Request } from 'src/api/request/model';
 import { Quote } from 'src/api/quote/model';
@@ -84,6 +84,10 @@ export class Booking {
 
   @Field(() => Quote, { nullable: true })
   quote?: Quote;
+
+  /** Present once the customer has reviewed this (completed) booking. */
+  @Field(() => Review, { nullable: true })
+  review?: Review;
 }
 
 registerEnumType(BookingStatus, {

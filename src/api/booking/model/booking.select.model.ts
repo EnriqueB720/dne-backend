@@ -1,4 +1,4 @@
-import { SupplierSelect } from 'src/api/supplier/model';
+import { ReviewSelect, SupplierSelect } from 'src/api/supplier/model';
 import { CustomerSelect } from 'src/api/customer/model';
 import { RequestSelect } from 'src/api/request/model';
 import { QuoteSelect } from 'src/api/quote/model';
@@ -30,6 +30,7 @@ interface BookingPrismaSelect {
   customer?: CustomerSelect;
   request?: RequestSelect;
   quote?: QuoteSelect;
+  review?: ReviewSelect;
 }
 
 export interface BookingSelect {

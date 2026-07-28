@@ -1,4 +1,5 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
+import { Customer } from 'src/api/customer/model';
 
 /**
  * A review left by a customer on a completed booking. Lives under the
@@ -42,4 +43,8 @@ export class Review {
 
   @Field()
   createdAt: Date;
+
+  /** Reviewer — lets the storefront show who left the review. */
+  @Field(() => Customer, { nullable: true })
+  customer?: Customer;
 }
