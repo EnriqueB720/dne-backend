@@ -4,7 +4,7 @@ import { ConfigModule } from 'src/shared/config/config.module';
 import { GoogleDriveModule } from './shared/google-drive/google-drive.module';
 import { PubSubModule } from './shared/pubsub/pubsub.module';
 import { JwtModule } from '@nestjs/jwt';
-import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule, ChatModule, RequestModule, QuoteModule, BookingModule, CalendarEventModule, ConversationModule, NotificationModule, FavoriteModule, CustomerModule, AdminModule, EmbeddingModule } from '@apis';
+import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule, ChatModule, RequestModule, QuoteModule, BookingModule, CalendarEventModule, ConversationModule, NotificationModule, FavoriteModule, CustomerModule, AdminModule, EmbeddingModule, ReviewModule } from '@apis';
 import { AuthModule } from './shared/auth/auth.module';
 
 
@@ -37,6 +37,7 @@ import { AuthModule } from './shared/auth/auth.module';
     CustomerModule,
     AdminModule,
     EmbeddingModule,
+    ReviewModule,
   ],
   controllers: [],
   providers: [],

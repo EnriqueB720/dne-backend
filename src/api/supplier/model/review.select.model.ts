@@ -1,3 +1,5 @@
+import { CustomerSelect } from 'src/api/customer/model';
+
 interface ReviewPrismaSelect {
   reviewId?: boolean;
   bookingId?: boolean;
@@ -11,6 +13,7 @@ interface ReviewPrismaSelect {
   ratingPunctuality?: boolean;
   supplierResponse?: boolean;
   createdAt?: boolean;
+  customer?: CustomerSelect;
 }
 
 export interface ReviewSelect {
