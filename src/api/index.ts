@@ -15,6 +15,7 @@ import { NotificationModule } from './notification/notification.module';
 import { FavoriteModule } from './favorite/favorite.module';
 import { CustomerModule } from './customer/customer.module';
 import { AdminModule } from './admin/admin.module';
+import { EmbeddingModule } from './embedding/embedding.module';
 import { ReviewModule } from './review/review.module';
 
 
@@ -37,5 +38,6 @@ export {
   FavoriteModule,
   CustomerModule,
   AdminModule,
+  EmbeddingModule,
   ReviewModule,
 }
