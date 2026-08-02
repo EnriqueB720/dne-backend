@@ -4,6 +4,9 @@ import {
   CompleteOnboardingInput,
   LoginOutput,
   LoginUserInput,
+  PasswordResetResult,
+  RequestPasswordResetInput,
+  ResetPasswordInput,
   SignUpInput,
   SocialLoginInput,
 } from './dto';
@@ -44,6 +47,27 @@ export class AuthResolver {
   @Mutation(() => LoginOutput)
   socialLogin(@Args('data') data: SocialLoginInput) {
     return this.authService.socialLogin(data);
+  }
+
+  /**
+   * "Forgot your password" — starts the flow. Always returns ok=true so
+   * unregistered emails can't be enumerated. In dev (no email service),
+   * `resetUrl` is populated when the account exists so the UI can show a
+   * click-to-reset link inline.
+   */
+  @Mutation(() => PasswordResetResult)
+  requestPasswordReset(@Args('data') data: RequestPasswordResetInput) {
+    return this.authService.requestPasswordReset(data);
+  }
+
+  /**
+   * Consumes a reset token. Rejects invalid / expired / already-used
+   * tokens with a BadRequestException so the UI can show a "link no
+   * longer valid" state.
+   */
+  @Mutation(() => PasswordResetResult)
+  resetPassword(@Args('data') data: ResetPasswordInput) {
+    return this.authService.resetPassword(data);
   }
 
   /** Finishes a social signup: pick CUSTOMER/SUPPLIER and fill in the gaps. */

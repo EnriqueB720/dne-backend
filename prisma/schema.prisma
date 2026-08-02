@@ -55,6 +55,7 @@ model User {
   aiConversations AiConversation[]
   oauthAccounts   OAuthAccount[]
   aiUsageLogs     AiUsageLog[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
   @@index([phone])
@@ -77,6 +78,25 @@ model OAuthAccount {
   @@unique([provider, providerId])
   @@index([userId])
   @@map("oauth_account")
+}
+
+// Password-reset tokens for the "forgot your password" flow. One row per
+// requested reset. Tokens are cryptographically-random 64-char hex
+// strings, single-use (stamped `usedAt` on success), and expire an hour
+// after creation. There's no email service yet, so `requestPasswordReset`
+// returns the URL directly in the response — see AuthService for details.
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  user      User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  token     String    @unique @db.VarChar(128)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_token")
 }
 
 model Customer {
