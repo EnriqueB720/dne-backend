@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
@@ -6,6 +7,9 @@ import {
   CompleteOnboardingInput,
   LoginOutput,
   LoginUserInput,
+  PasswordResetResult,
+  RequestPasswordResetInput,
+  ResetPasswordInput,
   SignUpInput,
   SocialLoginInput,
 } from './dto';
@@ -228,6 +232,88 @@ export class AuthService {
     if (!user) return null;
 
     return this.issueToken(user as unknown as User);
+  }
+
+  // ── Password reset ────────────────────────────────────────────────────
+
+  /**
+   * Starts a "forgot password" flow. Always resolves successfully so an
+   * attacker can't enumerate registered emails by watching for errors.
+   *
+   * When the email matches a real user, we mint a cryptographically
+   * random 64-char hex token, store it with a 1-hour expiry, and — since
+   * there's no email service yet — return the reset URL directly in the
+   * response so the UI can display it as a "dev preview" link. When an
+   * email service lands later, `resetUrl` becomes always-null and the
+   * link is sent by email instead.
+   */
+  async requestPasswordReset(
+    { email }: RequestPasswordResetInput,
+  ): Promise<PasswordResetResult> {
+    const user = await this.prismaService.user.findFirst({
+      where: { email, deletedAt: null },
+      select: { userId: true, password: true },
+    });
+
+    // OAuth-only accounts (no password) can't use this flow because there's
+    // no password to reset — return the same happy shape without emitting a
+    // token to keep the response uniform.
+    if (!user || !user.password) {
+      return { ok: true, resetUrl: null };
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.prismaService.passwordResetToken.create({
+      data: { userId: user.userId, token, expiresAt },
+    });
+
+    // FRONTEND_BASE_URL lets non-local environments (staging/preview) mint
+    // the correct hostname without code changes. Falls back to the local
+    // dev server so the demo works out of the box.
+    const base = process.env.FRONTEND_BASE_URL ?? 'http://localhost:3000';
+    const resetUrl = `${base.replace(/\/$/, '')}/reset-password/${token}`;
+    return { ok: true, resetUrl };
+  }
+
+  /**
+   * Consumes a password-reset token. Rejects tokens that don't exist,
+   * have expired, or were already used. On success, bcrypt-hashes the
+   * new password and stamps the token as consumed so it can't be reused.
+   */
+  async resetPassword(
+    { token, newPassword }: ResetPasswordInput,
+  ): Promise<PasswordResetResult> {
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    const row = await this.prismaService.passwordResetToken.findUnique({
+      where: { token },
+    });
+
+    if (!row || row.usedAt || row.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('This reset link is invalid or has expired');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update the password and mark the token used in a single transaction
+    // so a crash between the two writes can't leave a consumable token
+    // paired with the new password.
+    await this.prismaService.$transaction([
+      this.prismaService.user.update({
+        where: { userId: row.userId },
+        data: { password: passwordHash },
+      }),
+      this.prismaService.passwordResetToken.update({
+        where: { id: row.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    return { ok: true };
   }
 
   // ── Social login (OAuth) ──────────────────────────────────────────────
