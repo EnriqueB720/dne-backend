@@ -90,6 +90,16 @@ type SupplierCategory {
   category: Category
 }
 
+type MediaAsset {
+  mediaAssetId: Int!
+  url: String!
+  thumbnailUrl: String
+  altText: String
+  caption: String
+  displayOrder: Int!
+  mimeType: String
+}
+
 type Supplier {
   supplierId: Float!
   user: User
@@ -99,6 +109,8 @@ type Supplier {
   description: String
   businessPhone: String
   businessEmail: String
+  businessPhoneAlt: String
+  businessEmailAlt: String
   whatsappNumber: String
   websiteUrl: String
   city: String
@@ -116,6 +128,7 @@ type Supplier {
   posts: [Post!]
   categories: [SupplierCategory!]
   reviewsReceived: [Review!]
+  media: [MediaAsset!]
 }
 
 enum PromotionTier {
@@ -572,6 +585,7 @@ type Query {
   searchSuppliers(data: SupplierSearchInput!): [Supplier!]!
   supplierDashboardStats(supplierId: Int!): SupplierDashboardStats!
   category(where: CategoryWhereInput!): Category!
+  categories: [Category!]!
   pricing(where: PricingWhereInput!): Pricing!
   subscription(where: SubscriptionWhereInput!): PlanSubscription!
   aiConversations(deviceId: String): [AiConversation!]!
@@ -601,6 +615,7 @@ type Query {
   topSuppliers(adminUserId: Int!, limit: Int = 10): [TopSupplierRow!]!
   aiUsageBreakdown(adminUserId: Int!, daysBack: Int = 30): [AiUsageBreakdownRow!]!
   revenueByDay(adminUserId: Int!, daysBack: Int = 30): [RevenueByDayRow!]!
+  servicesBySupplier(supplierId: Int!, includeInactive: Boolean): [Service!]!
 }
 
 input UserWhereInput {
@@ -685,6 +700,9 @@ type Mutation {
   completeOnboarding(data: CompleteOnboardingInput!): LoginOutput!
   createSupplier(data: SupplierCreateInput!): Supplier!
   updateSupplier(data: SupplierUpdateInput!): Supplier!
+  setSupplierCategories(data: SupplierCategoriesInput!): Boolean!
+  deleteSupplierMedia(data: SupplierMediaDeleteInput!): Boolean!
+  reorderSupplierMedia(data: SupplierMediaReorderInput!): Boolean!
   createCategory(data: CategoryCreateInput!): Category!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): PlanSubscription!
@@ -722,6 +740,9 @@ type Mutation {
   createReview(data: ReviewCreateInput!): Review!
   updateReview(data: ReviewUpdateInput!): Review!
   deleteReview(data: ReviewDeleteInput!): Boolean!
+  createService(data: ServiceCreateInput!): Service!
+  updateService(data: ServiceUpdateInput!): Service!
+  deleteService(data: ServiceDeleteInput!): Boolean!
 }
 
 input UserCreateInput {
@@ -812,12 +833,31 @@ input SupplierUpdateInput {
   description: String
   businessPhone: String
   businessEmail: String
+  businessPhoneAlt: String
+  businessEmailAlt: String
   whatsappNumber: String
   websiteUrl: String
   city: String
   address: String
   minCapacity: Int
   maxCapacity: Int
+  responseTimeMinutes: Int
+}
+
+input SupplierCategoriesInput {
+  supplierId: Int!
+  categoryIds: [Int!]!
+  primaryCategoryId: Int
+}
+
+input SupplierMediaDeleteInput {
+  mediaAssetId: Int!
+  supplierId: Int!
+}
+
+input SupplierMediaReorderInput {
+  supplierId: Int!
+  mediaAssetIds: [Int!]!
 }
 
 input CategoryCreateInput {
@@ -1061,6 +1101,44 @@ input ReviewUpdateInput {
 input ReviewDeleteInput {
   reviewId: Int!
   customerId: Int!
+}
+
+input ServiceCreateInput {
+  supplierId: Int!
+  categoryId: Int!
+  name: String!
+  description: String!
+  pricingModel: PricingModel
+  basePrice: String!
+  currency: String
+  minTotalPrice: String
+  maxTotalPrice: String
+  minUnits: Int
+  maxUnits: Int
+  unitLabel: String
+  active: Boolean
+}
+
+input ServiceUpdateInput {
+  serviceId: Int!
+  supplierId: Int!
+  categoryId: Int!
+  name: String!
+  description: String!
+  pricingModel: PricingModel
+  basePrice: String!
+  currency: String
+  minTotalPrice: String
+  maxTotalPrice: String
+  minUnits: Int
+  maxUnits: Int
+  unitLabel: String
+  active: Boolean
+}
+
+input ServiceDeleteInput {
+  serviceId: Int!
+  supplierId: Int!
 }
 
 type Subscription {

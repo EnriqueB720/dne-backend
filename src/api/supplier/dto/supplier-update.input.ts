@@ -27,6 +27,13 @@ export class SupplierUpdateInput {
   @Field({ nullable: true })
   businessEmail?: string;
 
+  /** Optional second phone / email — the settings form allows up to two of each. */
+  @Field({ nullable: true })
+  businessPhoneAlt?: string;
+
+  @Field({ nullable: true })
+  businessEmailAlt?: string;
+
   @Field({ nullable: true })
   whatsappNumber?: string;
 
@@ -44,4 +51,12 @@ export class SupplierUpdateInput {
 
   @Field(() => Int, { nullable: true })
   maxCapacity?: number;
+
+  /**
+   * Typical first-reply time, in minutes. Self-declared — it drives the
+   * "Replies in ~N min" line on the storefront. The dashboard's response
+   * *rate* is the measured number; this one is a promise, not a metric.
+   */
+  @Field(() => Int, { nullable: true })
+  responseTimeMinutes?: number;
 }

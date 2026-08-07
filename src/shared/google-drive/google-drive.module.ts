@@ -6,5 +6,6 @@ import { GoogleDriveService } from './google-drive.service';
   imports: [],
   controllers: [GoogleDriveController],
   providers: [GoogleDriveService],
+  exports: [GoogleDriveService],
 })
 export class GoogleDriveModule {}

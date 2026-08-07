@@ -16,6 +16,13 @@ export class CategoryResolver {
     return await this.categoryService.findOne(args, fields);
   }
 
+  @Query(() => [Category])
+  public async categories(
+    @GraphQLFields() { fields }: IGraphQLFields<CategorySelect>,
+  ): Promise<Category[]> {
+    return await this.categoryService.findMany(fields);
+  }
+
   @Mutation(() => Category)
   public async createCategory(
     @Args('data') data: CategoryCreateInput,

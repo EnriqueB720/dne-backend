@@ -5,3 +5,5 @@ export * from './review.model';
 export * from './review.select.model';
 export * from './supplier-category.model';
 export * from './supplier-category.select.model';
+export * from './media-asset.model';
+export * from './media-asset.select.model';

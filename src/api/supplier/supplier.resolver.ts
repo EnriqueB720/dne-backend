@@ -1,7 +1,15 @@
 import { Resolver, Query, Args, Int, Mutation } from '@nestjs/graphql';
 import { SupplierService } from './supplier.service';
 import { Supplier, SupplierDashboardStats, SupplierSelect } from './model';
-import { SupplierArgs, SupplierCreateInput, SupplierSearchInput, SupplierUpdateInput } from './dto';
+import {
+  SupplierArgs,
+  SupplierCategoriesInput,
+  SupplierCreateInput,
+  SupplierMediaDeleteInput,
+  SupplierMediaReorderInput,
+  SupplierSearchInput,
+  SupplierUpdateInput,
+} from './dto';
 import { GraphQLFields, IGraphQLFields } from '@decorators';
 
 @Resolver(() => Supplier)
@@ -45,6 +53,30 @@ export class SupplierResolver {
     @GraphQLFields() { fields }: IGraphQLFields<SupplierSelect>,
   ): Promise<Supplier> {
     return await this.supplierService.update(data, fields);
+  }
+
+  /** Replace the supplier's category badges. Send the complete selection. */
+  @Mutation(() => Boolean)
+  public async setSupplierCategories(
+    @Args('data') data: SupplierCategoriesInput,
+  ): Promise<boolean> {
+    return await this.supplierService.setCategories(data);
+  }
+
+  /** Remove one photo from the supplier's storefront gallery. */
+  @Mutation(() => Boolean)
+  public async deleteSupplierMedia(
+    @Args('data') data: SupplierMediaDeleteInput,
+  ): Promise<boolean> {
+    return await this.supplierService.deleteMedia(data);
+  }
+
+  /** Persist a new gallery order — index 0 becomes the hero tile. */
+  @Mutation(() => Boolean)
+  public async reorderSupplierMedia(
+    @Args('data') data: SupplierMediaReorderInput,
+  ): Promise<boolean> {
+    return await this.supplierService.reorderMedia(data);
   }
 
   /** Aggregate metrics for the supplier workspace dashboard. */

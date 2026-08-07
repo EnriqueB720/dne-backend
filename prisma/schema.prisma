@@ -219,6 +219,11 @@ model Supplier {
   whatsappNumber String? @map("whatsapp_number")
   websiteUrl     String? @map("website_url")
 
+  // Secondary contact channels. The storefront lets a supplier publish up to
+  // two phones and two emails; these hold the second of each.
+  businessPhoneAlt String? @map("business_phone_alt")
+  businessEmailAlt String? @map("business_email_alt")
+
   city    String?
   address String?
   lat     Decimal? @db.Decimal(10, 7)
@@ -888,6 +893,10 @@ model MediaAsset {
   supplier   Supplier? @relation(fields: [supplierId], references: [supplierId])
 
   storageProvider String  @default("r2") @map("storage_provider")
+  // Provider-side identifier (for google-drive, the Drive file id). Needed
+  // to stream the bytes back through our own API and to delete the file
+  // from storage when the asset is removed.
+  storageFileId   String? @map("storage_file_id")
   url             String
   thumbnailUrl    String? @map("thumbnail_url")
 
