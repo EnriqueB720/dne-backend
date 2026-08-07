@@ -568,6 +568,11 @@ type LoginOutput {
   user: User!
 }
 
+type PasswordResetResult {
+  ok: Boolean!
+  resetUrl: String
+}
+
 type Query {
   user(where: UserWhereInput!): User!
   search(query: String, skip: Float, take: Float): Search!
@@ -690,6 +695,8 @@ type Mutation {
   deletePost(whereUnique: PostWhereUniqueInput!): Boolean!
   signup(data: SignUpInput!): User!
   socialLogin(data: SocialLoginInput!): LoginOutput!
+  requestPasswordReset(data: RequestPasswordResetInput!): PasswordResetResult!
+  resetPassword(data: ResetPasswordInput!): PasswordResetResult!
   completeOnboarding(data: CompleteOnboardingInput!): LoginOutput!
   createSupplier(data: SupplierCreateInput!): Supplier!
   updateSupplier(data: SupplierUpdateInput!): Supplier!
@@ -795,6 +802,15 @@ input SignUpInput {
 input SocialLoginInput {
   provider: String!
   token: String!
+}
+
+input RequestPasswordResetInput {
+  email: String!
+}
+
+input ResetPasswordInput {
+  token: String!
+  newPassword: String!
 }
 
 input CompleteOnboardingInput {
