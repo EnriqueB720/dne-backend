@@ -1,11 +1,25 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { BookingStatus, Prisma, PromotionTier, QuoteStatus, RequestStatus } from '@prisma/client';
 
 import { PrismaService } from '@prisma-datasource';
-import { SupplierArgs, SupplierCreateInput, SupplierSearchInput, SupplierUpdateInput } from './dto';
+import {
+  SupplierArgs,
+  SupplierCategoriesInput,
+  SupplierCreateInput,
+  SupplierMediaDeleteInput,
+  SupplierMediaReorderInput,
+  SupplierSearchInput,
+  SupplierUpdateInput,
+} from './dto';
 import { Supplier, SupplierDashboardStats, SupplierSelect } from './model';
 import { PostService } from '../post/post.service';
 import { EmbeddingService } from '../embedding/embedding.service';
+import { GoogleDriveService } from '../../shared/google-drive/google-drive.service';
 import { buildSupplierEmbeddingText } from './supplier-embedding.text';
 
 /**
@@ -13,6 +27,13 @@ import { buildSupplierEmbeddingText } from './supplier-embedding.text';
  * embedding. When any of these change on `update()`, we re-embed.
  */
 const EMBEDDING_SOURCE_FIELDS = ['companyName', 'tagline', 'description'] as const;
+
+/**
+ * Cap on how many categories one supplier may claim. Without a limit the
+ * cheapest way to win more leads is to tick every box, which degrades
+ * matching for everyone.
+ */
+const MAX_SUPPLIER_CATEGORIES = 5;
 
 @Injectable()
 export class SupplierService {
@@ -22,6 +43,7 @@ export class SupplierService {
     private readonly prismaService: PrismaService,
     private readonly postService: PostService,
     private readonly embeddingService: EmbeddingService,
+    private readonly googleDriveService: GoogleDriveService,
   ) {}
 
   /**
@@ -32,7 +54,7 @@ export class SupplierService {
    * still succeeds; the supplier just won't semantic-search until the
    * next successful re-embed (or a manual backfill run).
    */
-  private scheduleEmbed(supplierId: number): void {
+  public scheduleEmbed(supplierId: number): void {
     if (!this.embeddingService.isEnabled()) return;
     void this.embedAndPersist(supplierId).catch((err) => {
       this.logger.warn(
@@ -64,13 +86,43 @@ export class SupplierService {
     );
   }
 
+  /**
+   * The GraphQL→Prisma select built by `@GraphQLFields()` is selection-only:
+   * it has no idea that services can be soft-deleted/disabled or that
+   * gallery photos have an author-chosen order. Layer those relation
+   * filters on before the query runs so every read path (findOne, findMany,
+   * both search paths) agrees on what the storefront shows.
+   */
+  private withRelationFilters(select: any): any {
+    if (!select) return select;
+    const merged: any = { ...select };
+
+    if (merged.services) {
+      merged.services = {
+        ...merged.services,
+        where: { deletedAt: null, active: true },
+        orderBy: [{ serviceId: 'asc' }],
+      };
+    }
+
+    if (merged.media) {
+      merged.media = {
+        ...merged.media,
+        where: { deletedAt: null },
+        orderBy: [{ displayOrder: 'asc' }, { mediaAssetId: 'asc' }],
+      };
+    }
+
+    return merged;
+  }
+
   public async findOne(
     { where }: SupplierArgs,
     { select }: SupplierSelect,
   ): Promise<Supplier> {
     const supplier: any = await this.prismaService.supplier.findFirst({
       where,
-      select
+      select: this.withRelationFilters(select),
     });
 
     if (supplier?.posts) {
@@ -85,7 +137,7 @@ export class SupplierService {
   ): Promise<Supplier[]> {
     const suppliers: any[] = await this.prismaService.supplier.findMany({
       orderBy: { companyName: 'asc' },
-      select,
+      select: this.withRelationFilters(select),
     });
 
     return suppliers.map((s) => {
@@ -223,7 +275,7 @@ export class SupplierService {
     // Always select `city` + service-area cities for ranking, on top of
     // whatever the GraphQL layer asked for. Extra fields are harmless — the
     // GraphQL response only serializes what the query requested.
-    const mergedSelect: any = { ...(select ?? {}) };
+    const mergedSelect: any = this.withRelationFilters({ ...(select ?? {}) });
     mergedSelect.city = true;
     // Always pull the promotion fields too — the JS-side reranker below
     // promotes FEATURED-active suppliers above their peers regardless of
@@ -377,7 +429,7 @@ export class SupplierService {
 
     const take = limit && limit > 0 ? limit : 4;
 
-    const mergedSelect: any = { ...(select ?? {}) };
+    const mergedSelect: any = this.withRelationFilters({ ...(select ?? {}) });
     mergedSelect.supplierId = true;
     mergedSelect.city = true;
     mergedSelect.promotionTier = true;
@@ -437,12 +489,25 @@ export class SupplierService {
     { supplierId, ...data }: SupplierUpdateInput,
     { select }: SupplierSelect,
   ): Promise<Supplier> {
+    // An omitted field means "leave it alone", but an explicitly empty
+    // string means "clear it" — without this, a supplier could never remove
+    // a phone number or website once saved (Prisma reads '' as a value to
+    // write, and the old form sent `undefined` for blanks either way).
+    const normalized: Record<string, unknown> = { ...data };
+    for (const [key, value] of Object.entries(normalized)) {
+      if (typeof value === 'string' && value.trim() === '') {
+        normalized[key] = null;
+      }
+    }
+    // companyName is required on the model — never null it out.
+    if (normalized.companyName == null) delete normalized.companyName;
+
     // Cast: Prisma's strict return type doesn't include the relation shapes
     // the GraphQL ObjectType declares as eager fields.
     const result = (await this.prismaService.supplier.update({
       where: { supplierId },
-      data,
-      select,
+      data: normalized,
+      select: this.withRelationFilters(select),
     })) as unknown as Supplier;
 
     // Re-embed only when a field that contributes to the vector actually
@@ -452,6 +517,127 @@ export class SupplierService {
     if (changed) this.scheduleEmbed(supplierId);
 
     return result;
+  }
+
+  /**
+   * Replace the supplier's category set.
+   *
+   * Categories were previously write-once from the seed scripts — there was
+   * no API path at all — so the badges on a storefront could never change.
+   * They also feed the semantic-search text, hence the re-embed.
+   */
+  public async setCategories({
+    supplierId,
+    categoryIds,
+    primaryCategoryId,
+  }: SupplierCategoriesInput): Promise<boolean> {
+    const ids = [...new Set(categoryIds)].filter((id) => Number.isFinite(id));
+
+    if (ids.length === 0) {
+      throw new BadRequestException('Pick at least one category');
+    }
+    if (ids.length > MAX_SUPPLIER_CATEGORIES) {
+      throw new BadRequestException(
+        `Pick at most ${MAX_SUPPLIER_CATEGORIES} categories — listing everything makes matching worse, not better`,
+      );
+    }
+
+    const known = await this.prismaService.category.findMany({
+      where: { categoryId: { in: ids }, active: true },
+      select: { categoryId: true },
+    });
+    if (known.length !== ids.length) {
+      throw new BadRequestException('One of those categories does not exist');
+    }
+
+    // Exactly one primary, always — fall back to the first selection when
+    // the requested primary isn't in the set.
+    const primary =
+      primaryCategoryId != null && ids.includes(primaryCategoryId)
+        ? primaryCategoryId
+        : ids[0];
+
+    await this.prismaService.$transaction([
+      this.prismaService.supplierCategory.deleteMany({ where: { supplierId } }),
+      this.prismaService.supplierCategory.createMany({
+        data: ids.map((categoryId) => ({
+          supplierId,
+          categoryId,
+          isPrimary: categoryId === primary,
+        })),
+      }),
+    ]);
+
+    this.scheduleEmbed(supplierId);
+    return true;
+  }
+
+  /**
+   * Take a gallery photo off the storefront and out of storage.
+   *
+   * The row is hard-deleted rather than flagged: nothing references a
+   * MediaAsset, and once the underlying file is gone a soft-deleted row
+   * would only be a pointer to nothing. Storage deletion is best effort —
+   * if Drive refuses, the photo still leaves the storefront and the
+   * orphaned file is logged.
+   */
+  public async deleteMedia({
+    mediaAssetId,
+    supplierId,
+  }: SupplierMediaDeleteInput): Promise<boolean> {
+    const asset = await this.prismaService.mediaAsset.findUnique({
+      where: { mediaAssetId },
+      select: { supplierId: true, deletedAt: true, storageFileId: true, url: true },
+    });
+    if (!asset || asset.deletedAt) {
+      throw new NotFoundException('Photo not found');
+    }
+    if (asset.supplierId !== supplierId) {
+      throw new BadRequestException('Photo does not belong to this supplier');
+    }
+
+    await this.googleDriveService.deleteStoredFile(
+      asset.storageFileId ?? this.fileIdFromUrl(asset.url),
+    );
+
+    await this.prismaService.mediaAsset.delete({ where: { mediaAssetId } });
+    return true;
+  }
+
+  /** Pull the Drive file id out of a legacy stored URL (`...id=<ID>&...`). */
+  private fileIdFromUrl(url: string | null | undefined): string | null {
+    if (!url) return null;
+    const match = /[?&]id=([^&]+)/.exec(url);
+    return match ? match[1] : null;
+  }
+
+  /**
+   * Persist the gallery order the supplier dragged into place. Ids that
+   * don't belong to this supplier are ignored rather than throwing, so a
+   * stale tab can't wipe someone else's ordering.
+   */
+  public async reorderMedia({
+    supplierId,
+    mediaAssetIds,
+  }: SupplierMediaReorderInput): Promise<boolean> {
+    const owned = await this.prismaService.mediaAsset.findMany({
+      where: { supplierId, deletedAt: null },
+      select: { mediaAssetId: true },
+    });
+    const ownedIds = new Set(owned.map((a) => a.mediaAssetId));
+
+    const ordered = mediaAssetIds.filter((id) => ownedIds.has(id));
+    if (ordered.length === 0) return true;
+
+    await this.prismaService.$transaction(
+      ordered.map((mediaAssetId, index) =>
+        this.prismaService.mediaAsset.update({
+          where: { mediaAssetId },
+          data: { displayOrder: index },
+        }),
+      ),
+    );
+    return true;
   }
 
   /**

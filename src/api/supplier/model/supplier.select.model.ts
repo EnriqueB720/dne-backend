@@ -3,6 +3,7 @@ import { UserSelect } from 'src/api/user/model';
 import { ServiceSelect } from 'src/api/service/model';
 import { ReviewSelect } from './review.select.model';
 import { SupplierCategorySelect } from './supplier-category.select.model';
+import { MediaAssetSelect } from './media-asset.select.model';
 
 interface SupplierPrismaSelect {
   supplierId?: boolean;
@@ -13,6 +14,8 @@ interface SupplierPrismaSelect {
   description?: boolean;
   businessPhone?: boolean;
   businessEmail?: boolean;
+  businessPhoneAlt?: boolean;
+  businessEmailAlt?: boolean;
   whatsappNumber?: boolean;
   websiteUrl?: boolean;
   city?: boolean;
@@ -30,6 +33,7 @@ interface SupplierPrismaSelect {
   posts?: PostSelect;
   categories?: SupplierCategorySelect;
   reviewsReceived?: ReviewSelect;
+  media?: MediaAssetSelect;
 }
 
 export interface SupplierSelect {

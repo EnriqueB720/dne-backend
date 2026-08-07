@@ -18,6 +18,15 @@ export class CategoryService {
     });
   }
 
+  /** Active categories for pickers (e.g. tagging a service on the settings page). */
+  public async findMany({ select }: CategorySelect): Promise<Category[]> {
+    return await this.prismaService.category.findMany({
+      where: { active: true },
+      orderBy: [{ displayOrder: 'asc' }, { categoryName: 'asc' }],
+      select,
+    });
+  }
+
   public async create(
     data: CategoryCreateInput,
     { select }: CategorySelect,

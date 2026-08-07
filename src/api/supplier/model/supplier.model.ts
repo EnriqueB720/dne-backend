@@ -6,6 +6,7 @@ import { Service } from 'src/api/service/model';
 import { Category } from 'src/api/category/model';
 import { Review } from './review.model';
 import { SupplierCategory } from './supplier-category.model';
+import { MediaAsset } from './media-asset.model';
 
 registerEnumType(PromotionTier, {
   name: 'PromotionTier',
@@ -37,6 +38,13 @@ export class Supplier {
 
   @Field({ nullable: true })
   businessEmail?: string;
+
+  /** Optional second phone / email — a supplier may publish up to two of each. */
+  @Field({ nullable: true })
+  businessPhoneAlt?: string;
+
+  @Field({ nullable: true })
+  businessEmailAlt?: string;
 
   @Field({ nullable: true })
   whatsappNumber?: string;
@@ -88,4 +96,8 @@ export class Supplier {
 
   @Field(() => [Review], { nullable: true })
   reviewsReceived?: Review[];
+
+  /** Storefront gallery photos, ascending by `displayOrder`. */
+  @Field(() => [MediaAsset], { nullable: true })
+  media?: MediaAsset[];
 }
