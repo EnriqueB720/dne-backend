@@ -14,6 +14,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { GoogleDriveService, UploadOwnerType } from './google-drive.service';
+import type { MulterFile } from './uploaded-file.type';
 
 @Controller('files')
 export class GoogleDriveController {
@@ -26,7 +27,7 @@ export class GoogleDriveController {
    */
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  async upload(@UploadedFile() file: Express.Multer.File,
+  async upload(@UploadedFile() file: MulterFile,
                @Body('userOrPostId') userOrPostId: number,
                @Body('ownerId') ownerId: number,
                @Body('ownerType') ownerType: string,

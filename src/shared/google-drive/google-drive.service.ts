@@ -8,6 +8,7 @@ import {
 import { google } from 'googleapis'
 import { Readable } from 'stream'
 import { PrismaService } from '../datasource/prisma/prisma.service'
+import type { MulterFile } from './uploaded-file.type'
 
 /** What the uploaded file gets attached to. */
 export type UploadOwnerType = 'user' | 'post' | 'supplier'
@@ -146,7 +147,7 @@ export class GoogleDriveService {
    * the caller's job.
    */
   private async pushToDrive(
-    file: Express.Multer.File,
+    file: MulterFile,
     nameSuffix: string,
     folderId: string,
   ): Promise<string> {
@@ -216,7 +217,7 @@ export class GoogleDriveService {
   }
 
   async uploadFile(
-    file: Express.Multer.File,
+    file: MulterFile,
     ownerId: number,
     ownerType: UploadOwnerType,
   ) {
@@ -264,7 +265,7 @@ export class GoogleDriveService {
    * MediaAsset row appended to the end of the gallery order.
    */
   private async uploadSupplierPhoto(
-    file: Express.Multer.File,
+    file: MulterFile,
     supplierId: number,
   ) {
     if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
