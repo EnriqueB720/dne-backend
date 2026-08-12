@@ -2,12 +2,20 @@
  * One-off script that embeds every supplier missing a
  * `descriptionEmbedding` and writes the vector back to Postgres.
  *
- * Run with: `npx ts-node src/scripts/backfill-supplier-embeddings.ts`
+ * Run with: `npm run prisma:embed`
+ *
+ * RUN THIS AFTER SEEDING. The seed scripts create suppliers without
+ * embeddings, and semantic search only considers rows where
+ * `description_embedding IS NOT NULL` — so until this runs, a freshly
+ * seeded catalogue is invisible to it and the chat falls back to
+ * out-of-network AI suggestions.
  *
  * Env: needs `OPENAI_API_KEY` (same one ChatModule uses). Safe to re-run
  *      — it filters to NULL embeddings, so only touches new/failed rows.
+ *      Worth running periodically: a supplier created while the embedding
+ *      API was down keeps a NULL vector and nothing retries it.
  *      Flip `FORCE_ALL=true` to re-embed everything (e.g. after a model
- *      switch).
+ *      switch): `FORCE_ALL=true npm run prisma:embed`.
  */
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
@@ -20,7 +28,10 @@ import { PrismaService } from '../shared/datasource/prisma/prisma.service';
 async function main() {
   const logger = new Logger('backfill-supplier-embeddings');
   const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: ['error', 'warn'],
+    // 'log' included so the script's own progress/summary lines actually
+    // reach the terminal — without it `npm run prisma:embed` finishes
+    // silently and you can't tell whether it embedded anything.
+    logger: ['error', 'warn', 'log'],
   });
   const embedding = app.get(EmbeddingService);
   const prisma = app.get(PrismaService);
