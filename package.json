@@ -24,6 +24,7 @@
     "prisma:generate": "npx prisma generate",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:seed:marketplace": "ts-node prisma/seed-marketplace.ts",
+    "prisma:embed": "ts-node -r tsconfig-paths/register src/scripts/backfill-supplier-embeddings.ts",
     "sync-migrations": "npm run prisma:generate && npm run prisma:save"
   },
   "prisma": {

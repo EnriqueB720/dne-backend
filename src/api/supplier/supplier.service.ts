@@ -196,8 +196,65 @@ export class SupplierService {
    *    "service matches elsewhere", and the caller/AI can explain that.
    */
   public async search(
-    { serviceQuery, city, guestCount, categoryId, limit }: SupplierSearchInput,
+    input: SupplierSearchInput,
     { select }: SupplierSelect,
+  ): Promise<Supplier[]> {
+    const { serviceQuery, city, guestCount, categoryId, limit } = input;
+    const take = limit && limit > 0 ? limit : 4;
+
+    // Semantic first. When the embedding API is available and we have a
+    // service query, we resolve the pool via pgvector cosine distance
+    // instead of keyword matching — catches "fridge repair" → "appliance
+    // repair" that literal `contains` would miss.
+    const semanticIds = await this.resolveSemanticPool(
+      serviceQuery,
+      { guestCount, categoryId },
+      // Take a wider pool for the reranker below to work with.
+      Math.min(Math.max(take * 4, 20), 60),
+    );
+
+    const semantic =
+      semanticIds && semanticIds.length > 0
+        ? await this.finishSearchFromIds(semanticIds, city, limit, select)
+        : [];
+
+    if (semantic.length >= take) return semantic;
+
+    // Top up from keyword search whenever the vector pool comes up short.
+    // A thin or empty pool usually says nothing about relevance: the
+    // supplier's embedding may never have been written (the embedding API
+    // was down when it was created, and nothing retries), or the phrasing
+    // sits just past the distance cutoff. Returning the short list as-is
+    // makes those suppliers unreachable by ANY search — and the chat
+    // quietly backfills the empty slots with out-of-network AI suggestions,
+    // which is what "the AI only returns providers outside our network"
+    // looked like from the outside.
+    const keyword = await this.keywordSearch(input, select, take);
+    const seen = new Set<number>(semantic.map((s: any) => s.supplierId));
+    const merged: any[] = [...semantic];
+    for (const s of keyword as any[]) {
+      if (seen.has(s.supplierId)) continue;
+      merged.push(s);
+      if (merged.length >= take) break;
+    }
+
+    // Rank the combined list rather than leaving the keyword top-ups tacked
+    // on the end — otherwise a supplier based in the requested city sorts
+    // below an out-of-city one purely because it arrived via the keyword
+    // path (e.g. an Escazú DJ landing last on an Escazú search).
+    return this.rankByCityAndPromotion(merged, city).slice(0, take);
+  }
+
+  /**
+   * Literal `contains` search across name/tagline/description/services/
+   * categories, with the same city + sponsored reranking the semantic path
+   * uses. This is the floor under semantic search: it needs no embedding,
+   * so it still finds a supplier the vector index can't see.
+   */
+  private async keywordSearch(
+    { serviceQuery, city, guestCount, categoryId }: SupplierSearchInput,
+    select: any,
+    take: number,
   ): Promise<Supplier[]> {
     const ands: any[] = [];
 
@@ -214,21 +271,6 @@ export class SupplierService {
       ands.push({
         categories: { some: { categoryId } },
       });
-    }
-
-    // Try semantic search first. When the embedding API is available and
-    // we have a service query, we resolve the pool via pgvector cosine
-    // distance instead of keyword matching — catches "fridge repair" →
-    // "appliance repair" that literal `contains` would miss.
-    const semanticIds = await this.resolveSemanticPool(
-      serviceQuery,
-      { guestCount, categoryId },
-      // Take the pool for the reranker below to work with.
-      Math.min(Math.max((limit && limit > 0 ? limit : 4) * 4, 20), 60),
-    );
-
-    if (semanticIds !== null) {
-      return await this.finishSearchFromIds(semanticIds, city, limit, select);
     }
 
     if (serviceQuery && serviceQuery.trim()) {
@@ -267,7 +309,6 @@ export class SupplierService {
 
     const where: any = { deletedAt: null, ...(ands.length > 0 && { AND: ands }) };
 
-    const take = limit && limit > 0 ? limit : 4;
     // Pull a wider pool than `take` so the JS-side city ranking has material
     // to promote from. Bounded so we never scan the whole table.
     const poolSize = Math.min(Math.max(take * 4, 20), 60);
@@ -276,6 +317,9 @@ export class SupplierService {
     // whatever the GraphQL layer asked for. Extra fields are harmless — the
     // GraphQL response only serializes what the query requested.
     const mergedSelect: any = this.withRelationFilters({ ...(select ?? {}) });
+    // `supplierId` is needed to dedupe against the semantic results in
+    // `search()`, regardless of what the GraphQL caller asked for.
+    mergedSelect.supplierId = true;
     mergedSelect.city = true;
     // Always pull the promotion fields too — the JS-side reranker below
     // promotes FEATURED-active suppliers above their peers regardless of
@@ -298,41 +342,7 @@ export class SupplierService {
       select: mergedSelect,
     });
 
-    let ranked = suppliers;
-    if (city && city.trim()) {
-      const target = this.normalizeForMatch(city);
-      const inCity: any[] = [];
-      const elsewhere: any[] = [];
-      for (const s of suppliers) {
-        const supplierCity = this.normalizeForMatch(s?.city ?? '');
-        const directMatch = this.cityMatches(supplierCity, target);
-        const areaMatch = (s?.serviceAreas ?? []).some((a: any) =>
-          this.cityMatches(this.normalizeForMatch(a?.city ?? ''), target),
-        );
-        if (directMatch || areaMatch) inCity.push(s);
-        else elsewhere.push(s);
-      }
-      // City matches first, then the rest — both already rating-ordered.
-      ranked = [...inCity, ...elsewhere];
-    }
-
-    // Sponsored boost. Within the already-ranked list, promote suppliers
-    // whose `promotionTier = FEATURED` is currently active (start <= now,
-    // end null or in the future) above their non-featured peers — while
-    // preserving the relative order set above (so city + rating still win
-    // among featured-vs-featured and non-vs-non).
-    const now = Date.now();
-    const isActiveFeatured = (s: any): boolean => {
-      if (s?.promotionTier !== PromotionTier.FEATURED) return false;
-      const start = s?.promotionStartDate ? new Date(s.promotionStartDate).getTime() : null;
-      const end = s?.promotionEndDate ? new Date(s.promotionEndDate).getTime() : null;
-      if (start !== null && start > now) return false;
-      if (end !== null && end < now) return false;
-      return true;
-    };
-    const featured = ranked.filter(isActiveFeatured);
-    const rest = ranked.filter((s) => !isActiveFeatured(s));
-    ranked = [...featured, ...rest];
+    const ranked = this.rankByCityAndPromotion(suppliers, city);
 
     return ranked.slice(0, take).map((s) => {
       if (s?.posts) s.posts = this.postService.parsePostPrice(s.posts);
@@ -392,11 +402,17 @@ export class SupplierService {
     // The distance threshold caps how "far" a supplier can be and still
     // count as a match — without it, a small DB fills the pool with
     // marginal neighbours (movers/decor showing up for a cleaning query).
-    // Cosine distance range is 0 (identical) → 2 (opposite). For
-    // text-embedding-3-small, ~0.55 is empirically the boundary between
-    // "clearly related" and "same domain but different service." Tune
-    // via SUPPLIER_SEMANTIC_MAX_DISTANCE env if it feels off in prod.
-    const maxDistance = Number(process.env.SUPPLIER_SEMANTIC_MAX_DISTANCE ?? 0.55);
+    // Cosine distance range is 0 (identical) → 2 (opposite). Measured
+    // against the seeded catalogue with text-embedding-3-small: correct
+    // matches land at 0.42–0.65 ("I need a dj" → DJ Carlos Mix 0.46, DJ
+    // Mauricio 0.49, Pro Events DJ 0.55, Piki Tiki 0.64) while unrelated
+    // suppliers only start around 0.75 (photographers/cleaners for that
+    // same query). The old 0.55 default cut straight through the correct
+    // set — it dropped two of the three DJs on a bare "DJ" query. 0.65
+    // sits in the gap between the two clusters. Short queries score
+    // systematically farther than long ones, so leave headroom here and
+    // tune via SUPPLIER_SEMANTIC_MAX_DISTANCE per environment.
+    const maxDistance = Number(process.env.SUPPLIER_SEMANTIC_MAX_DISTANCE ?? 0.65);
     const sql = `
       SELECT supplier_id
       FROM supplier
@@ -446,38 +462,11 @@ export class SupplierService {
 
     // Preserve the semantic order (`findMany` returns arbitrary order).
     const byId = new Map<number, any>(rows.map((r: any) => [r.supplierId, r]));
-    let ranked: any[] = orderedIds
+    const ordered: any[] = orderedIds
       .map((id) => byId.get(id))
       .filter((s): s is any => !!s);
 
-    if (city && city.trim()) {
-      const target = this.normalizeForMatch(city);
-      const inCity: any[] = [];
-      const elsewhere: any[] = [];
-      for (const s of ranked) {
-        const supplierCity = this.normalizeForMatch(s?.city ?? '');
-        const directMatch = this.cityMatches(supplierCity, target);
-        const areaMatch = (s?.serviceAreas ?? []).some((a: any) =>
-          this.cityMatches(this.normalizeForMatch(a?.city ?? ''), target),
-        );
-        if (directMatch || areaMatch) inCity.push(s);
-        else elsewhere.push(s);
-      }
-      ranked = [...inCity, ...elsewhere];
-    }
-
-    const now = Date.now();
-    const isActiveFeatured = (s: any): boolean => {
-      if (s?.promotionTier !== PromotionTier.FEATURED) return false;
-      const start = s?.promotionStartDate ? new Date(s.promotionStartDate).getTime() : null;
-      const end = s?.promotionEndDate ? new Date(s.promotionEndDate).getTime() : null;
-      if (start !== null && start > now) return false;
-      if (end !== null && end < now) return false;
-      return true;
-    };
-    const featured = ranked.filter(isActiveFeatured);
-    const rest = ranked.filter((s) => !isActiveFeatured(s));
-    ranked = [...featured, ...rest];
+    const ranked = this.rankByCityAndPromotion(ordered, city);
 
     return ranked.slice(0, take).map((s) => {
       if (s?.posts) s.posts = this.postService.parsePostPrice(s.posts);
@@ -786,6 +775,54 @@ export class SupplierService {
   }
 
   /** Lowercase + strip diacritics so "San José" and "san jose" compare equal. */
+  /**
+   * Shared final ordering for every search path: suppliers in (or serving)
+   * the requested city first, then active FEATURED suppliers lifted above
+   * their peers. Both passes are stable, so whatever relevance order the
+   * caller came in with (semantic distance, or rating for keyword) still
+   * decides ties.
+   */
+  private rankByCityAndPromotion(rows: any[], city?: string): any[] {
+    let ranked = rows;
+
+    if (city && city.trim()) {
+      const target = this.normalizeForMatch(city);
+      const inCity: any[] = [];
+      const elsewhere: any[] = [];
+      for (const s of ranked) {
+        const supplierCity = this.normalizeForMatch(s?.city ?? '');
+        const directMatch = this.cityMatches(supplierCity, target);
+        const areaMatch = (s?.serviceAreas ?? []).some((a: any) =>
+          this.cityMatches(this.normalizeForMatch(a?.city ?? ''), target),
+        );
+        if (directMatch || areaMatch) inCity.push(s);
+        else elsewhere.push(s);
+      }
+      ranked = [...inCity, ...elsewhere];
+    }
+
+    // Sponsored boost — promote suppliers whose `promotionTier = FEATURED`
+    // is currently active (start <= now, end null or in the future).
+    const now = Date.now();
+    const isActiveFeatured = (s: any): boolean => {
+      if (s?.promotionTier !== PromotionTier.FEATURED) return false;
+      const start = s?.promotionStartDate
+        ? new Date(s.promotionStartDate).getTime()
+        : null;
+      const end = s?.promotionEndDate
+        ? new Date(s.promotionEndDate).getTime()
+        : null;
+      if (start !== null && start > now) return false;
+      if (end !== null && end < now) return false;
+      return true;
+    };
+
+    return [
+      ...ranked.filter(isActiveFeatured),
+      ...ranked.filter((s) => !isActiveFeatured(s)),
+    ];
+  }
+
   private normalizeForMatch(value: string): string {
     return value
       .toLowerCase()
