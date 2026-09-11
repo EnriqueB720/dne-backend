@@ -10,6 +10,7 @@ import { GqlThrottlerGuard } from './shared/throttler/gql-throttler.guard';
 import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule, ChatModule, RequestModule, QuoteModule, BookingModule, CalendarEventModule, ConversationModule, NotificationModule, FavoriteModule, CustomerModule, AdminModule, EmbeddingModule, ReviewModule, ServiceModule } from '@apis';
 import { AuthModule } from './shared/auth/auth.module';
 import { HealthModule } from './shared/health/health.module';
+import { EmailModule } from './shared/email/email.module';
 
 
 @Module({
@@ -50,6 +51,7 @@ import { HealthModule } from './shared/health/health.module';
     ReviewModule,
     ServiceModule,
     HealthModule,
+    EmailModule,
   ],
   controllers: [],
   providers: [

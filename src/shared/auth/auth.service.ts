@@ -19,6 +19,7 @@ import { UserService } from 'src/api/user/user.service';
 import { SupplierService } from 'src/api/supplier/supplier.service';
 import { Role } from '@prisma/client';
 import { PrismaService } from '@prisma-datasource';
+import { EmailService } from '../email/email.service';
 
 const USER_PROFILE_SELECT = {
   userId: true,
@@ -87,6 +88,7 @@ export class AuthService {
     private jwtService: JwtService,
     private readonly supplierService: SupplierService,
     private readonly prismaService: PrismaService,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -240,12 +242,16 @@ export class AuthService {
    * Starts a "forgot password" flow. Always resolves successfully so an
    * attacker can't enumerate registered emails by watching for errors.
    *
-   * When the email matches a real user, we mint a cryptographically
-   * random 64-char hex token, store it with a 1-hour expiry, and — since
-   * there's no email service yet — return the reset URL directly in the
-   * response so the UI can display it as a "dev preview" link. When an
-   * email service lands later, `resetUrl` becomes always-null and the
-   * link is sent by email instead.
+   * When the email matches a real user we mint a cryptographically-random
+   * 64-char hex token, store it with a 1-hour expiry, and dispatch the
+   * link. Delivery mode differs by environment:
+   *   - production: the link is emailed via Resend; the mutation
+   *     returns `resetUrl = null` so the frontend shows a generic
+   *     "check your inbox" state and nothing about token routing leaks.
+   *   - non-production: no email is sent; `resetUrl` comes back inline
+   *     so the developer can click it directly. This is the same
+   *     workflow devs have used since the flow was first built and it
+   *     keeps local iteration email-service-free.
    */
   async requestPasswordReset(
     { email }: RequestPasswordResetInput,
@@ -274,6 +280,17 @@ export class AuthService {
     // dev server so the demo works out of the box.
     const base = process.env.FRONTEND_BASE_URL ?? 'http://localhost:3000';
     const resetUrl = `${base.replace(/\/$/, '')}/reset-password/${token}`;
+
+    const isProd = process.env.NODE_ENV === 'production';
+    if (isProd) {
+      // Non-blocking on the mutation response: the token is already
+      // stored, the email fires with its own retry logic inside
+      // EmailService, and delivery failures never turn into 500s for
+      // the caller. Response stays generic to prevent enumeration.
+      await this.emailService.sendPasswordReset(email, resetUrl);
+      return { ok: true, resetUrl: null };
+    }
+
     return { ok: true, resetUrl };
   }
 
