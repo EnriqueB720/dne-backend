@@ -6,6 +6,7 @@ import { PubSubModule } from './shared/pubsub/pubsub.module';
 import { JwtModule } from '@nestjs/jwt';
 import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule, ChatModule, RequestModule, QuoteModule, BookingModule, CalendarEventModule, ConversationModule, NotificationModule, FavoriteModule, CustomerModule, AdminModule, EmbeddingModule, ReviewModule, ServiceModule } from '@apis';
 import { AuthModule } from './shared/auth/auth.module';
+import { HealthModule } from './shared/health/health.module';
 
 
 @Module({
@@ -39,6 +40,7 @@ import { AuthModule } from './shared/auth/auth.module';
     EmbeddingModule,
     ReviewModule,
     ServiceModule,
+    HealthModule,
   ],
   controllers: [],
   providers: [],
