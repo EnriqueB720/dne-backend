@@ -112,10 +112,6 @@ model Customer {
   preferredLanguage Language? @map("preferred_language")
   marketingOptIn    Boolean   @default(false) @map("marketing_opt_in")
 
-  totalRequests Int     @default(0) @map("total_requests")
-  totalBookings Int     @default(0) @map("total_bookings")
-  lifetimeValue Decimal @default(0) @map("lifetime_value") @db.Decimal(12, 2)
-
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -235,8 +231,8 @@ model Supplier {
   rating              Decimal? @db.Decimal(3, 2)
   reviewCount         Int      @default(0) @map("review_count")
   responseTimeMinutes Int?     @map("response_time_minutes")
-  conversionRate      Decimal? @map("conversion_rate") @db.Decimal(5, 4)
-  completionRate      Decimal? @map("completion_rate") @db.Decimal(5, 4)
+  // conversionRate + completionRate removed — computed fresh in
+  // SupplierService.getDashboardStats from Quote/Booking source data.
 
   verified   Boolean   @default(false)
   verifiedAt DateTime? @map("verified_at")
@@ -967,32 +963,8 @@ model ScrapeSource {
 }
 
 // =====================================================================
-// AI / SEARCH (no vector columns until pgvector is installed)
+// AI / SEARCH
 // =====================================================================
-
-model EmbeddingJob {
-  embeddingJobId Int @id @default(autoincrement()) @map("embedding_job_id")
-
-  entityType String @map("entity_type")
-  entityId   Int    @map("entity_id")
-
-  sourceText String @map("source_text")
-  textHash   String @map("text_hash")
-
-  status   EmbeddingStatus @default(QUEUED)
-  attempts Int             @default(0)
-  error    String?
-
-  model String?
-
-  createdAt   DateTime  @default(now()) @map("created_at")
-  processedAt DateTime? @map("processed_at")
-
-  @@unique([entityType, entityId, textHash])
-  @@index([status, createdAt])
-  @@index([entityType, entityId])
-  @@map("embedding_job")
-}
 
 model SearchLog {
   searchLogId Int   @id @default(autoincrement()) @map("search_log_id")
@@ -1205,9 +1177,3 @@ enum NotificationStatus {
   FAILED
 }
 
-enum EmbeddingStatus {
-  QUEUED
-  PROCESSING
-  DONE
-  FAILED
-}
