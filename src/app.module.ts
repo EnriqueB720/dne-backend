@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './shared/datasource/prisma/prisma.module';
 import { ConfigModule } from 'src/shared/config/config.module';
@@ -15,6 +16,9 @@ import { EmailModule } from './shared/email/email.module';
 
 @Module({
   imports: [
+    // Sentry must sit at the top of the import list so its instrumentation
+    // is armed before other modules initialize.
+    SentryModule.forRoot(),
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET,
@@ -55,6 +59,10 @@ import { EmailModule } from './shared/email/email.module';
   ],
   controllers: [],
   providers: [
+    // Sentry's exception filter reports unhandled errors to Sentry
+    // BEFORE NestJS's default handler serializes them. Registered
+    // first so it wraps every other filter.
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
     // Globally apply the GraphQL-aware throttler guard. Individual
     // resolvers can tighten with @Throttle() or opt out with
     // @SkipThrottle() (e.g. /health).
