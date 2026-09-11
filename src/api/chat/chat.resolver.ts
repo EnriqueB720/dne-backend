@@ -1,4 +1,5 @@
 import { Args, Mutation, Resolver } from '@nestjs/graphql';
+import { Throttle } from '@nestjs/throttler';
 import { ChatService } from './chat.service';
 import { AiCompletionInput } from './dto';
 import { AiCompletionResult } from './model';
@@ -12,6 +13,10 @@ import { AiCompletionResult } from './model';
 export class ChatResolver {
   constructor(private readonly chatService: ChatService) {}
 
+  // 20 completions / minute per IP — the OpenAI-budget guard. Chat
+  // sessions rarely exceed this rate for a real user; anything higher
+  // is either bot abuse or a runaway UI bug.
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Mutation(() => AiCompletionResult)
   async aiComplete(
     @Args('data') data: AiCompletionInput,
