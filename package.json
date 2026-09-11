@@ -46,6 +46,8 @@
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.19.0",
     "@prisma/config": "6.19.0",
+    "@sentry/nestjs": "^10.74.0",
+    "@sentry/profiling-node": "^10.74.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
