@@ -46,6 +46,14 @@ COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nestjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nestjs:nodejs /app/package.json ./package.json
 
+# `WORKDIR /app` itself is created root-owned (mode 755) — the --chown on
+# each COPY above only chowns the copied contents, not this directory.
+# NestJS's GraphQL module regenerates schema.gql directly in the cwd on
+# every boot (code-first autoSchemaFile), which needs *write* permission
+# on /app itself, not just its files. Without this, startup crashes with
+# EACCES the moment GraphQLModule tries to create the file.
+RUN chown nestjs:nodejs /app
+
 USER nestjs
 
 EXPOSE 5000
