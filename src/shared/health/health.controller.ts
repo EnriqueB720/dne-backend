@@ -5,6 +5,7 @@ import {
   HttpStatus,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 
 import { PrismaService } from '@prisma-datasource';
 
@@ -23,6 +24,10 @@ import { PrismaService } from '@prisma-datasource';
  * that dropped the socket, this call surfaces the failure quickly
  * instead of letting user requests hang.
  */
+// Railway pings /health on a short interval; keeping the throttler out
+// of that path means health checks never eat into an IP's request budget
+// and can never falsely trip the rate limiter.
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(private readonly prismaService: PrismaService) {}
