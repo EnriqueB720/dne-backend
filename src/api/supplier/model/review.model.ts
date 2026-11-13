@@ -11,8 +11,9 @@ export class Review {
   @Field(() => Int)
   reviewId: number;
 
-  @Field(() => Int)
-  bookingId: number;
+  /** Null for storefront reviews — only legacy booking reviews carry one. */
+  @Field(() => Int, { nullable: true })
+  bookingId?: number | null;
 
   @Field(() => Int)
   customerId: number;

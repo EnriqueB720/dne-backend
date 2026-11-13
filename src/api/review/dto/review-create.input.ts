@@ -1,17 +1,28 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
 
+/**
+ * Two ways to leave a review:
+ *  - Storefront (Phase 5 default): pass `supplierId`. Any signed-in customer
+ *    can review a supplier once; a second review is rejected in favour of
+ *    editing the first.
+ *  - Legacy booking flow: pass `bookingId`. The booking must belong to the
+ *    reviewer, be COMPLETED and not reviewed yet.
+ * The reviewer is always the signed-in user, never the input.
+ */
 @InputType()
 export class ReviewCreateInput {
-  @Field(() => Int)
-  bookingId: number;
+  @Field(() => Int, { nullable: true })
+  supplierId?: number;
+
+  @Field(() => Int, { nullable: true })
+  bookingId?: number;
 
   /**
-   * Customer submitting the review. Must match the booking's customer —
-   * the service rejects mismatches so one customer can't review another
-   * customer's booking.
+   * Optional cross-check only. When sent it must match the signed-in
+   * user's customer profile, so a stale client can't post as someone else.
    */
-  @Field(() => Int)
-  customerId: number;
+  @Field(() => Int, { nullable: true })
+  customerId?: number;
 
   /** Overall rating, 1–5. */
   @Field(() => Int)

@@ -69,7 +69,7 @@ type Customer {
 
 type Review {
   reviewId: Int!
-  bookingId: Int!
+  bookingId: Int
   customerId: Int!
   supplierId: Int!
   rating: Int!
@@ -1077,8 +1077,9 @@ input SetSupplierPromotionInput {
 }
 
 input ReviewCreateInput {
-  bookingId: Int!
-  customerId: Int!
+  supplierId: Int
+  bookingId: Int
+  customerId: Int
   rating: Int!
   text: String
   ratingQuality: Int

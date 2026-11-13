@@ -52,14 +52,39 @@ export class ReviewService {
   }
 
   /**
-   * Customer leaves a review on a completed booking. One review per booking
-   * (enforced both here and by the DB unique constraint).
+   * The reviewer is whoever is signed in. Supplier-only accounts have no
+   * customer profile and can't review. `claimedCustomerId` is the optional
+   * id the client sent — a mismatch means a stale or forged request.
+   */
+  private async resolveReviewer(
+    userId: number,
+    claimedCustomerId?: number,
+  ): Promise<{ customerId: number; name: string }> {
+    const customer = await this.prismaService.customer.findUnique({
+      where: { userId },
+      select: { customerId: true, user: { select: { name: true } } },
+    });
+    if (!customer) {
+      throw new BadRequestException('Only customer accounts can leave reviews');
+    }
+    if (claimedCustomerId != null && claimedCustomerId !== customer.customerId) {
+      throw new BadRequestException('You can only review as yourself');
+    }
+    return { customerId: customer.customerId, name: customer.user.name };
+  }
+
+  /**
+   * Signed-in customer reviews a supplier. Storefront reviews (by
+   * `supplierId`) need no booking — one per customer per supplier, edit to
+   * change it. The legacy booking path (by `bookingId`) keeps its rules:
+   * own booking, COMPLETED, one review per booking.
    */
   public async create(
     data: ReviewCreateInput,
     { select }: ReviewSelect,
+    userId: number,
   ): Promise<Review> {
-    const { bookingId, customerId, rating, text, ...subRatings } = data;
+    const { bookingId, supplierId: inputSupplierId, customerId: claimedCustomerId, rating, text, ...subRatings } = data;
 
     this.assertRatingsInRange([
       ['rating', rating],
@@ -69,55 +94,93 @@ export class ReviewService {
       ['ratingPunctuality', subRatings.ratingPunctuality],
     ]);
 
-    const booking = await this.prismaService.booking.findUnique({
-      where: { bookingId },
-      select: {
-        customerId: true,
-        supplierId: true,
-        status: true,
-        review: { select: { reviewId: true } },
-        supplier: { select: { userId: true, companyName: true } },
-        customer: { select: { user: { select: { name: true } } } },
-      },
+    const reviewer = await this.resolveReviewer(userId, claimedCustomerId);
+
+    let supplierId: number;
+    if (bookingId != null) {
+      const booking = await this.prismaService.booking.findUnique({
+        where: { bookingId },
+        select: {
+          customerId: true,
+          supplierId: true,
+          status: true,
+          review: { select: { reviewId: true } },
+        },
+      });
+      if (!booking) {
+        throw new NotFoundException(`Booking ${bookingId} not found`);
+      }
+      if (booking.customerId !== reviewer.customerId) {
+        throw new BadRequestException('Only the customer on this booking can review it');
+      }
+      if (booking.status !== BookingStatus.COMPLETED) {
+        throw new BadRequestException('Reviews can only be left on completed bookings');
+      }
+      if (booking.review) {
+        throw new ConflictException('This booking has already been reviewed');
+      }
+      if (inputSupplierId != null && inputSupplierId !== booking.supplierId) {
+        throw new BadRequestException('That booking is with a different supplier');
+      }
+      supplierId = booking.supplierId;
+    } else {
+      if (inputSupplierId == null) {
+        throw new BadRequestException('Say which supplier you are reviewing');
+      }
+      supplierId = inputSupplierId;
+
+      // Not a DB constraint: customers who reviewed several bookings with
+      // the same supplier before Phase 5 already have more than one.
+      const existing = await this.prismaService.review.findFirst({
+        where: { supplierId, customerId: reviewer.customerId },
+        select: { reviewId: true },
+      });
+      if (existing) {
+        throw new ConflictException(
+          'You already reviewed this supplier — edit your review instead',
+        );
+      }
+    }
+
+    const supplier = await this.prismaService.supplier.findFirst({
+      where: { supplierId, deletedAt: null },
+      select: { userId: true },
     });
-    if (!booking) {
-      throw new NotFoundException(`Booking ${bookingId} not found`);
+    if (!supplier) {
+      throw new NotFoundException(`Supplier ${supplierId} not found`);
     }
-    if (booking.customerId !== customerId) {
-      throw new BadRequestException('Only the customer on this booking can review it');
-    }
-    if (booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('Reviews can only be left on completed bookings');
-    }
-    if (booking.review) {
-      throw new ConflictException('This booking has already been reviewed');
+    if (supplier.userId === userId) {
+      throw new BadRequestException("You can't review your own business");
     }
 
     const review = await this.prismaService.$transaction(async (tx) => {
       const created = await tx.review.create({
         data: {
-          bookingId,
-          customerId,
-          supplierId: booking.supplierId,
+          bookingId: bookingId ?? null,
+          customerId: reviewer.customerId,
+          supplierId,
           rating,
           text,
           ...subRatings,
         },
         select,
       });
-      await this.recomputeSupplierRating(tx, booking.supplierId);
+      await this.recomputeSupplierRating(tx, supplierId);
       return created;
     });
 
     // Best-effort: let the supplier know a review landed.
     void this.notificationService
       .emit({
-        userId: booking.supplier.userId,
+        userId: supplier.userId,
         template: 'REVIEW_RECEIVED',
         subject: 'You received a new review',
-        body: `${booking.customer.user.name} left a ${rating}-star review on a completed booking.`,
-        entityType: 'Booking',
-        entityId: bookingId,
+        body:
+          bookingId != null
+            ? `${reviewer.name} left a ${rating}-star review on a completed booking.`
+            : `${reviewer.name} left a ${rating}-star review on your profile.`,
+        entityType: bookingId != null ? 'Booking' : 'Supplier',
+        entityId: bookingId ?? supplierId,
       })
       .catch(() => undefined);
 
@@ -131,8 +194,9 @@ export class ReviewService {
   public async update(
     data: ReviewUpdateInput,
     { select }: ReviewSelect,
+    userId: number,
   ): Promise<Review> {
-    const { reviewId, customerId, rating, text, ...subRatings } = data;
+    const { reviewId, customerId: claimedCustomerId, rating, text, ...subRatings } = data;
 
     this.assertRatingsInRange([
       ['rating', rating],
@@ -142,6 +206,7 @@ export class ReviewService {
       ['ratingPunctuality', subRatings.ratingPunctuality],
     ]);
 
+    const { customerId } = await this.resolveReviewer(userId, claimedCustomerId);
     const existing = await this.prismaService.review.findUnique({
       where: { reviewId },
       select: { customerId: true, supplierId: true },
@@ -172,7 +237,11 @@ export class ReviewService {
   }
 
   /** Author removes their review. Returns true on success. */
-  public async delete({ reviewId, customerId }: ReviewDeleteInput): Promise<boolean> {
+  public async delete(
+    { reviewId, customerId: claimedCustomerId }: ReviewDeleteInput,
+    userId: number,
+  ): Promise<boolean> {
+    const { customerId } = await this.resolveReviewer(userId, claimedCustomerId);
     const existing = await this.prismaService.review.findUnique({
       where: { reviewId },
       select: { customerId: true, supplierId: true },
