@@ -11,7 +11,7 @@ import { PrismaService } from '../datasource/prisma/prisma.service'
 import type { MulterFile } from './uploaded-file.type'
 
 /** What the uploaded file gets attached to. */
-export type UploadOwnerType = 'user' | 'post' | 'supplier'
+export type UploadOwnerType = 'user' | 'supplier'
 
 const MAX_GALLERY_BYTES = 8 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set([
@@ -232,35 +232,24 @@ export class GoogleDriveService {
       return await this.uploadSupplierPhoto(file, ownerId)
     }
 
-    const isUser = ownerType === 'user'
     const fileId = await this.pushToDrive(
       file,
-      isUser ? 'user' : 'post',
-      isUser
-        ? process.env.GOOGLE_DRIVE_FOLDER_ID
-        : process.env.GOOGLE_DRIVE_POSTS_FOLDER_ID,
+      'user',
+      process.env.GOOGLE_DRIVE_FOLDER_ID,
     )
     const url = this.driveImageUrl(fileId, 1600)
 
-    if (isUser) {
-      // Update user's profile picture
-      await this.prismaService.user.update({
-        where: { userId: ownerId },
-        data: { profilePicture: url },
-      })
-    } else {
-      // Update post's media URL
-      await this.prismaService.post.update({
-        where: { postId: ownerId },
-        data: { media_url: url },
-      });
-    }
+    // Update user's profile picture
+    await this.prismaService.user.update({
+      where: { userId: ownerId },
+      data: { profilePicture: url },
+    })
 
     return { url }
   }
 
   /**
-   * Storefront gallery photo. Unlike user/post uploads (which overwrite a
+   * Storefront gallery photo. Unlike user uploads (which overwrite a
    * single column) a supplier accumulates photos, so each one becomes a
    * MediaAsset row appended to the end of the gallery order.
    */

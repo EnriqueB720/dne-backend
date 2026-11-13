@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -22,8 +23,8 @@ export class GoogleDriveController {
 
   /**
    * `ownerType` is the current way to say what the file attaches to
-   * ('user' | 'post' | 'supplier'). The older `isUser` flag is still
-   * honoured so existing callers keep working.
+   * ('user' | 'supplier'). The older `isUser` flag is still honoured so
+   * existing callers keep working.
    */
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
@@ -32,12 +33,15 @@ export class GoogleDriveController {
                @Body('ownerId') ownerId: number,
                @Body('ownerType') ownerType: string,
                @Body('isUser') isUser: string) {
-    const resolvedType: UploadOwnerType =
-      ownerType === 'supplier' || ownerType === 'post' || ownerType === 'user'
+    const resolvedType: UploadOwnerType | null =
+      ownerType === 'supplier' || ownerType === 'user'
         ? ownerType
         : isUser === 'true'
           ? 'user'
-          : 'post';
+          : null;
+    if (!resolvedType) {
+      throw new BadRequestException("ownerType must be 'user' or 'supplier'");
+    }
 
     return this.driveService.uploadFile(
       file,

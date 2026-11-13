@@ -67,6 +67,7 @@ async function main() {
       companyName: true,
       tagline: true,
       description: true,
+      skills: true,
       services: { select: { name: true, description: true } },
       categories: { select: { category: { select: { categoryName: true } } } },
     },

@@ -1,6 +1,5 @@
 import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { Prisma, PromotionTier } from '@prisma/client';
-import { Post } from 'src/api/post/model';
 import { User } from 'src/api/user/model';
 import { Service } from 'src/api/service/model';
 import { Category } from 'src/api/category/model';
@@ -32,6 +31,10 @@ export class Supplier {
 
   @Field({ nullable: true })
   description?: string;
+
+  /** Free-text capabilities that narrow AI matching (lowercase, deduped). */
+  @Field(() => [String], { nullable: true })
+  skills?: string[];
 
   @Field({ nullable: true })
   businessPhone?: string;
@@ -87,9 +90,6 @@ export class Supplier {
 
   @Field(() => [Service], { nullable: true })
   services?: Service[];
-
-  @Field(() => [Post], { nullable: true })
-  posts?: Post[];
 
   @Field(() => [SupplierCategory], { nullable: true })
   categories?: SupplierCategory[];

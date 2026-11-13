@@ -9,27 +9,6 @@ type Pricing {
   features: String!
 }
 
-type Category {
-  categoryId: Float!
-  categoryName: String!
-}
-
-type Post {
-  postId: Float!
-  supplier: Supplier!
-  category: Category!
-  title: String!
-  description: String!
-  price: String!
-  createdAt: DateTime!
-  media_url: String!
-}
-
-"""
-A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
-"""
-scalar DateTime
-
 type Service {
   serviceId: Float!
   supplierId: Float!
@@ -67,6 +46,11 @@ type Customer {
   user: User
 }
 
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
 type Review {
   reviewId: Int!
   bookingId: Int!
@@ -81,6 +65,11 @@ type Review {
   supplierResponse: String
   createdAt: DateTime!
   customer: Customer
+}
+
+type Category {
+  categoryId: Float!
+  categoryName: String!
 }
 
 type SupplierCategory {
@@ -107,6 +96,7 @@ type Supplier {
   slug: String
   tagline: String
   description: String
+  skills: [String!]
   businessPhone: String
   businessEmail: String
   businessPhoneAlt: String
@@ -125,7 +115,6 @@ type Supplier {
   promotionStartDate: DateTime
   promotionEndDate: DateTime
   services: [Service!]
-  posts: [Post!]
   categories: [SupplierCategory!]
   reviewsReceived: [Review!]
   media: [MediaAsset!]
@@ -185,10 +174,6 @@ type PlanSubscription {
   startDate: DateTime!
   endDate: DateTime!
   status: String!
-}
-
-type Search {
-  post: [Post!]
 }
 
 type AiMessage {
@@ -575,22 +560,20 @@ type PasswordResetResult {
 
 type Query {
   user(where: UserWhereInput!): User!
-  search(query: String, skip: Float, take: Float): Search!
-  postsBySupplier(where: PostWhereInput, whereUnique: PostWhereUniqueInput): [Post!]!
-  post(where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
   supplier(where: SupplierWhereInput!): Supplier!
   suppliers: [Supplier!]!
   searchSuppliers(data: SupplierSearchInput!): [Supplier!]!
+  suggestSupplierSkills(supplierId: Int!): [String!]!
   supplierDashboardStats(supplierId: Int!): SupplierDashboardStats!
+  aiConversations(deviceId: String): [AiConversation!]!
+  aiConversation(conversationId: String!, deviceId: String): AiConversation!
+  aiMessages(conversationId: String!, deviceId: String): [AiMessage!]!
   category(where: CategoryWhereInput!): Category!
   categories: [Category!]!
   pricing(where: PricingWhereInput!): Pricing!
   subscription(where: SubscriptionWhereInput!): PlanSubscription!
-  aiConversations(deviceId: String): [AiConversation!]!
-  aiConversation(conversationId: String!, deviceId: String): AiConversation!
-  aiMessages(conversationId: String!, deviceId: String): [AiMessage!]!
   request(where: RequestWhereInput!): Request!
   requestsByCustomer(customerId: Int!, status: RequestStatus): [Request!]!
   requestsBySupplier(supplierId: Int!, status: RequestStatus): [Request!]!
@@ -621,16 +604,6 @@ type Query {
 input UserWhereInput {
   userId: Int
   email: String
-}
-
-input PostWhereInput {
-  postId: Int
-  supplierId: Int
-  categoryId: Int
-}
-
-input PostWhereUniqueInput {
-  postId: Int!
 }
 
 input LoginUserInput {
@@ -690,9 +663,6 @@ input CustomerWhereInput {
 type Mutation {
   createUser(data: UserCreateInput!): User!
   updateUser(data: UserUpdateInput!): User!
-  createPost(data: PostCreateInput!): Post!
-  updatePost(data: PostUpdateInput!, where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
-  deletePost(whereUnique: PostWhereUniqueInput!): Boolean!
   signup(data: SignUpInput!): User!
   socialLogin(data: SocialLoginInput!): LoginOutput!
   requestPasswordReset(data: RequestPasswordResetInput!): PasswordResetResult!
@@ -701,11 +671,9 @@ type Mutation {
   createSupplier(data: SupplierCreateInput!): Supplier!
   updateSupplier(data: SupplierUpdateInput!): Supplier!
   setSupplierCategories(data: SupplierCategoriesInput!): Boolean!
+  setSupplierSkills(data: SupplierSkillsInput!): [String!]!
   deleteSupplierMedia(data: SupplierMediaDeleteInput!): Boolean!
   reorderSupplierMedia(data: SupplierMediaReorderInput!): Boolean!
-  createCategory(data: CategoryCreateInput!): Category!
-  createPricing(data: PricingCreateInput!): Pricing!
-  createSubscription(data: SubscriptionCreateInput!): PlanSubscription!
   aiComplete(data: AiCompletionInput!): AiCompletionResult!
   createAiConversation(data: AiConversationCreateInput!): AiConversation!
   updateAiConversation(data: AiConversationUpdateInput!, deviceId: String): AiConversation!
@@ -715,6 +683,9 @@ type Mutation {
   linkAiConversationToRequest(data: AiConversationLinkInput!, deviceId: String): AiConversation!
   rollbackLastAiTurn(conversationId: String!, deviceId: String): Float!
   mergeGuestAiConversations(deviceId: String!): Float!
+  createCategory(data: CategoryCreateInput!): Category!
+  createPricing(data: PricingCreateInput!): Pricing!
+  createSubscription(data: SubscriptionCreateInput!): PlanSubscription!
   createRequest(data: RequestCreateInput!): Request!
   updateRequestStatus(data: RequestUpdateStatusInput!): Request!
   closeRequest(data: RequestCloseInput!): Request!
@@ -770,22 +741,6 @@ input UserUpdateInput {
   phone: String
   country: String
   profilePicture: String
-}
-
-input PostCreateInput {
-  title: String!
-  categoryId: Int!
-  supplierId: Int!
-  description: String!
-  price: Int!
-  mediaUrl: String!
-}
-
-input PostUpdateInput {
-  title: String
-  description: String
-  price: Int
-  mediaUrl: String
 }
 
 input SignUpInput {
@@ -850,6 +805,11 @@ input SupplierCategoriesInput {
   primaryCategoryId: Int
 }
 
+input SupplierSkillsInput {
+  supplierId: Int!
+  skills: [String!]!
+}
+
 input SupplierMediaDeleteInput {
   mediaAssetId: Int!
   supplierId: Int!
@@ -858,24 +818,6 @@ input SupplierMediaDeleteInput {
 input SupplierMediaReorderInput {
   supplierId: Int!
   mediaAssetIds: [Int!]!
-}
-
-input CategoryCreateInput {
-  categoryName: String!
-}
-
-input PricingCreateInput {
-  planName: String!
-  price: Float!
-  features: String!
-}
-
-input SubscriptionCreateInput {
-  userId: Float!
-  planId: Float!
-  startDate: DateTime!
-  endDate: DateTime!
-  status: String!
 }
 
 input AiCompletionInput {
@@ -919,6 +861,24 @@ input AiMessageProvidersUpdateInput {
 input AiConversationLinkInput {
   conversationId: String!
   requestId: Int!
+}
+
+input CategoryCreateInput {
+  categoryName: String!
+}
+
+input PricingCreateInput {
+  planName: String!
+  price: Float!
+  features: String!
+}
+
+input SubscriptionCreateInput {
+  userId: Float!
+  planId: Float!
+  startDate: DateTime!
+  endDate: DateTime!
+  status: String!
 }
 
 input RequestCreateInput {

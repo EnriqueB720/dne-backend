@@ -8,9 +8,11 @@ import {
   SupplierMediaDeleteInput,
   SupplierMediaReorderInput,
   SupplierSearchInput,
+  SupplierSkillsInput,
   SupplierUpdateInput,
 } from './dto';
 import { GraphQLFields, IGraphQLFields } from '@decorators';
+import { Throttle } from '@nestjs/throttler';
 
 @Resolver(() => Supplier)
 export class SupplierResolver {
@@ -61,6 +63,26 @@ export class SupplierResolver {
     @Args('data') data: SupplierCategoriesInput,
   ): Promise<boolean> {
     return await this.supplierService.setCategories(data);
+  }
+
+  /** Replace the supplier's skill list. Send the complete list; returns it normalized. */
+  @Mutation(() => [String])
+  public async setSupplierSkills(
+    @Args('data') data: SupplierSkillsInput,
+  ): Promise<string[]> {
+    return await this.supplierService.setSkills(data.supplierId, data.skills);
+  }
+
+  /**
+   * AI-drafted skill suggestions from the supplier's profile. Read-only —
+   * nothing is saved. Throttled because every call is a model completion.
+   */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Query(() => [String])
+  public async suggestSupplierSkills(
+    @Args('supplierId', { type: () => Int }) supplierId: number,
+  ): Promise<string[]> {
+    return await this.supplierService.suggestSkills(supplierId);
   }
 
   /** Remove one photo from the supplier's storefront gallery. */

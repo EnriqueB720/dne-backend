@@ -1,4 +1,3 @@
-import { PostSelect } from 'src/api/post/model';
 import { UserSelect } from 'src/api/user/model';
 import { ServiceSelect } from 'src/api/service/model';
 import { ReviewSelect } from './review.select.model';
@@ -12,6 +11,7 @@ interface SupplierPrismaSelect {
   slug?: boolean;
   tagline?: boolean;
   description?: boolean;
+  skills?: boolean;
   businessPhone?: boolean;
   businessEmail?: boolean;
   businessPhoneAlt?: boolean;
@@ -30,7 +30,6 @@ interface SupplierPrismaSelect {
   promotionStartDate?: boolean;
   promotionEndDate?: boolean;
   services?: ServiceSelect;
-  posts?: PostSelect;
   categories?: SupplierCategorySelect;
   reviewsReceived?: ReviewSelect;
   media?: MediaAssetSelect;

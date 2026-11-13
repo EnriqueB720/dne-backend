@@ -17,10 +17,32 @@ import {
   SupplierUpdateInput,
 } from './dto';
 import { Supplier, SupplierDashboardStats, SupplierSelect } from './model';
-import { PostService } from '../post/post.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { GoogleDriveService } from '../../shared/google-drive/google-drive.service';
+import { ChatService } from '../chat/chat.service';
 import { buildSupplierEmbeddingText } from './supplier-embedding.text';
+import {
+  SKILL_DRAFT_SYSTEM_PROMPT,
+  SkillDraftSource,
+  buildSkillDraftPrompt,
+  hasSkillDraftMaterial,
+  normalizeSkills,
+  parseSkillDraft,
+} from './supplier-skills';
+
+/** Everything the skill draft and the embedding text are built from. */
+const SEARCH_SOURCE_SELECT = {
+  supplierId: true,
+  companyName: true,
+  tagline: true,
+  description: true,
+  skills: true,
+  services: { select: { name: true, description: true } },
+  categories: { select: { category: { select: { categoryName: true } } } },
+} as const;
+
+/** Cheapest configured model; ChatService falls back to the others. */
+const SKILL_DRAFT_MODEL = 'claude-haiku' as const;
 
 /**
  * Fields whose value contributes to a supplier's semantic-search
@@ -41,42 +63,58 @@ export class SupplierService {
 
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly postService: PostService,
     private readonly embeddingService: EmbeddingService,
     private readonly googleDriveService: GoogleDriveService,
+    private readonly chatService: ChatService,
   ) {}
 
   /**
-   * Fire-and-forget re-embed of a supplier's description vector. Called
-   * after create or field-changing update — never blocks the caller
-   * (embedding round-trip is 200–500ms) and never throws into the write
-   * path. If the embedding API is down or the key is missing, the write
-   * still succeeds; the supplier just won't semantic-search until the
-   * next successful re-embed (or a manual backfill run).
+   * Fire-and-forget refresh of a supplier's search data: drafts skills with
+   * the AI while the supplier has none, then re-embeds the description
+   * vector. Called after create or field-changing update — never blocks
+   * the caller (embedding round-trip is 200–500ms, a draft a few seconds)
+   * and never throws into the write path. If the embedding API is down or
+   * the key is missing, the write still succeeds; the supplier just won't
+   * semantic-search until the next successful re-embed (or a manual
+   * backfill run).
    */
   public scheduleEmbed(supplierId: number): void {
-    if (!this.embeddingService.isEnabled()) return;
-    void this.embedAndPersist(supplierId).catch((err) => {
+    void this.refreshSearchData(supplierId).catch((err) => {
       this.logger.warn(
         `Supplier embed failed for supplierId=${supplierId}: ${(err as Error).message}`,
       );
     });
   }
 
-  private async embedAndPersist(supplierId: number): Promise<void> {
+  public async refreshSearchData(supplierId: number): Promise<void> {
     const supplier = await this.prismaService.supplier.findUnique({
       where: { supplierId },
-      select: {
-        supplierId: true,
-        companyName: true,
-        tagline: true,
-        description: true,
-        services: { select: { name: true, description: true } },
-        categories: { select: { category: { select: { categoryName: true } } } },
-      },
+      select: SEARCH_SOURCE_SELECT,
     });
     if (!supplier) return;
 
+    // Only an empty list is drafted, so a supplier's own edits are never
+    // overwritten. A failed draft just leaves the list empty for next time.
+    if (supplier.skills.length === 0 && hasSkillDraftMaterial(supplier)) {
+      try {
+        const drafted = await this.draftSkills(supplier);
+        if (drafted.length > 0) {
+          // Guard on the row still being empty: the supplier may have saved
+          // their own skills while the draft was in flight.
+          const { count } = await this.prismaService.supplier.updateMany({
+            where: { supplierId, skills: { isEmpty: true } },
+            data: { skills: drafted },
+          });
+          if (count > 0) supplier.skills = drafted;
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Skill draft failed for supplierId=${supplierId}: ${(err as Error).message}`,
+        );
+      }
+    }
+
+    if (!this.embeddingService.isEnabled()) return;
     const text = buildSupplierEmbeddingText(supplier);
     const vector = await this.embeddingService.embed(text);
     await this.prismaService.$executeRawUnsafe(
@@ -125,10 +163,6 @@ export class SupplierService {
       select: this.withRelationFilters(select),
     });
 
-    if (supplier?.posts) {
-      supplier.posts = this.postService.parsePostPrice(supplier.posts);
-    }
-
     return supplier;
   }
 
@@ -140,12 +174,7 @@ export class SupplierService {
       select: this.withRelationFilters(select),
     });
 
-    return suppliers.map((s) => {
-      if (s?.posts) {
-        s.posts = this.postService.parsePostPrice(s.posts);
-      }
-      return s;
-    });
+    return suppliers;
   }
 
   public async create(
@@ -156,10 +185,6 @@ export class SupplierService {
       data,
       select
     });
-
-    if (supplier?.posts) {
-      supplier.posts = this.postService.parsePostPrice(supplier.posts);
-    }
 
     if (supplier?.supplierId) {
       this.scheduleEmbed(supplier.supplierId);
@@ -304,6 +329,19 @@ export class SupplierService {
         },
       ]);
 
+      // Prisma's array filters only match whole elements, so "dj" would miss
+      // the skill "wedding dj". Resolve partial skill matches in SQL first.
+      const skillTokens = tokens.length > 0 ? tokens : [serviceQuery.trim()];
+      const skillRows = await this.prismaService.$queryRawUnsafe<{ supplier_id: number }[]>(
+        `SELECT supplier_id FROM supplier
+         WHERE deleted_at IS NULL
+           AND EXISTS (SELECT 1 FROM unnest(skills) AS skill WHERE skill ILIKE ANY ($1::text[]))`,
+        skillTokens.map((t) => `%${t.toLowerCase()}%`),
+      );
+      if (skillRows.length > 0) {
+        tokenClauses.push({ supplierId: { in: skillRows.map((r) => r.supplier_id) } } as any);
+      }
+
       ands.push({ OR: tokenClauses });
     }
 
@@ -344,10 +382,7 @@ export class SupplierService {
 
     const ranked = this.rankByCityAndPromotion(suppliers, city);
 
-    return ranked.slice(0, take).map((s) => {
-      if (s?.posts) s.posts = this.postService.parsePostPrice(s.posts);
-      return s;
-    });
+    return ranked.slice(0, take);
   }
 
   /**
@@ -468,10 +503,7 @@ export class SupplierService {
 
     const ranked = this.rankByCityAndPromotion(ordered, city);
 
-    return ranked.slice(0, take).map((s) => {
-      if (s?.posts) s.posts = this.postService.parsePostPrice(s.posts);
-      return s;
-    });
+    return ranked.slice(0, take);
   }
 
   public async update(
@@ -559,6 +591,54 @@ export class SupplierService {
 
     this.scheduleEmbed(supplierId);
     return true;
+  }
+
+  /**
+   * Replace the supplier's skill list. The settings page always submits the
+   * complete list, so anything omitted is removed. Skills feed the
+   * semantic-search text, hence the re-embed.
+   */
+  public async setSkills(supplierId: number, skills: string[]): Promise<string[]> {
+    const normalized = normalizeSkills(skills);
+    const { count } = await this.prismaService.supplier.updateMany({
+      where: { supplierId },
+      data: { skills: normalized },
+    });
+    if (count === 0) {
+      throw new NotFoundException(`Supplier ${supplierId} not found`);
+    }
+
+    this.scheduleEmbed(supplierId);
+    return normalized;
+  }
+
+  /**
+   * AI-drafted skills for the settings page's "Suggest with AI" button.
+   * Nothing is saved — the supplier picks which suggestions to keep.
+   */
+  public async suggestSkills(supplierId: number): Promise<string[]> {
+    const supplier = await this.prismaService.supplier.findUnique({
+      where: { supplierId },
+      select: SEARCH_SOURCE_SELECT,
+    });
+    if (!supplier) {
+      throw new NotFoundException(`Supplier ${supplierId} not found`);
+    }
+    if (!hasSkillDraftMaterial(supplier)) {
+      throw new BadRequestException(
+        'Add a description or some services first — the AI drafts skills from them',
+      );
+    }
+    return this.draftSkills(supplier);
+  }
+
+  private async draftSkills(supplier: SkillDraftSource): Promise<string[]> {
+    const res = await this.chatService.send({
+      model: SKILL_DRAFT_MODEL,
+      system: SKILL_DRAFT_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: buildSkillDraftPrompt(supplier) }],
+    });
+    return parseSkillDraft(res.content);
   }
 
   /**
