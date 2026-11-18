@@ -21,6 +21,12 @@ import { Role } from '@prisma/client';
 import { PrismaService } from '@prisma-datasource';
 import { EmailService } from '../email/email.service';
 
+/**
+ * Session length. Short on purpose: the frontend renews the token every
+ * 15 minutes while the app is open, so only an hour of no use signs you out.
+ */
+const TOKEN_LIFETIME_SECONDS = 60 * 60;
+
 const USER_PROFILE_SELECT = {
   userId: true,
   email: true,
@@ -97,14 +103,20 @@ export class AuthService {
    * login, token refresh and social login all funnel through here.
    */
   private issueToken(user: User): LoginOutput {
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + TOKEN_LIFETIME_SECONDS * 1000);
     return {
-      access_token: this.jwtService.sign({
-        email: user.email,
-        sub: user.userId,
-        expiresIn: '1h',
-        expiresAt,
-      }),
+      // `expiresIn` as a sign option writes the standard `exp` claim, which
+      // passport-jwt enforces on every guarded resolver. The `expiresAt`
+      // payload field is kept because the frontend reads it.
+      access_token: this.jwtService.sign(
+        {
+          email: user.email,
+          sub: user.userId,
+          expiresIn: '1h',
+          expiresAt,
+        },
+        { expiresIn: TOKEN_LIFETIME_SECONDS },
+      ),
       expiresAt,
       user,
     } as LoginOutput;
@@ -219,10 +231,27 @@ export class AuthService {
     });
   }
 
+  /**
+   * Swap a still-valid token for a fresh one. The frontend calls this on
+   * every page load and every few minutes while the app is open, so an
+   * active session keeps sliding forward; one left unused past its hour
+   * expires for good.
+   */
   async refreshUser(token: string) {
-    const token_decoded = this.jwtService.decode(token);
+    // `verify`, not `decode`: decode skips the signature check, which let
+    // anyone hand-craft a token for any email and get a real one back.
+    let token_decoded: { email?: string; expiresAt?: string } | null;
+    try {
+      token_decoded = this.jwtService.verify(token);
+    } catch {
+      return null;
+    }
 
-    if (!token_decoded || new Date() > new Date(token_decoded.expiresAt)) {
+    // Tokens minted before `exp` was added carry only `expiresAt`.
+    if (
+      !token_decoded?.email ||
+      (token_decoded.expiresAt && new Date() > new Date(token_decoded.expiresAt))
+    ) {
       return null;
     }
 
