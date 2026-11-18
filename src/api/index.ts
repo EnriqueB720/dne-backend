@@ -16,6 +16,7 @@ import { AdminModule } from './admin/admin.module';
 import { EmbeddingModule } from './embedding/embedding.module';
 import { ReviewModule } from './review/review.module';
 import { ServiceModule } from './service/service.module';
+import { ContactModule } from './contact/contact.module';
 
 
 
@@ -38,4 +39,5 @@ export {
   EmbeddingModule,
   ReviewModule,
   ServiceModule,
+  ContactModule,
 }
