@@ -120,6 +120,7 @@ model Customer {
   conversations  Conversation[]
   favorites      Favorite[]
   reviewsWritten Review[]       @relation("CustomerReviews")
+  contactEvents  ContactEvent[]
 
   @@map("customer")
 }
@@ -265,6 +266,7 @@ model Supplier {
   bookings        Booking[]
   conversations   Conversation[]
   reviewsReceived Review[]              @relation("SupplierReviews")
+  contactEvents   ContactEvent[]
   calendarEvents  CalendarEvent[]
   payouts         Payout[]
   media           MediaAsset[]
@@ -711,6 +713,34 @@ model Review {
 
   @@index([supplierId, createdAt])
   @@map("review")
+}
+
+/// A customer reaching out to a supplier: the chat "Contact" button or a
+/// click on a phone / email / WhatsApp / website link. This is Solvo's lead
+/// signal (roadmap 2.1) and what the "How did it go?" review prompt follows
+/// up on. Repeat clicks by the same person within a day collapse into one row.
+model ContactEvent {
+  contactEventId Int            @id @default(autoincrement()) @map("contact_event_id")
+  supplierId     Int            @map("supplier_id")
+  supplier       Supplier       @relation(fields: [supplierId], references: [supplierId])
+  /// Null for guests — they still count as a lead but can't be prompted.
+  customerId     Int?           @map("customer_id")
+  customer       Customer?      @relation(fields: [customerId], references: [customerId])
+  /// Guest dedupe key (the chat's `solvo:device-id`).
+  deviceId       String?        @map("device_id")
+  channel        ContactChannel
+  /// Where the click happened: 'chat' or 'storefront'.
+  source         String?
+
+  /// Set when the customer said "not now" to the review prompt for this
+  /// supplier. A later contact starts a fresh row, so they can be asked again.
+  reviewPromptDismissedAt DateTime? @map("review_prompt_dismissed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([supplierId, createdAt])
+  @@index([customerId, supplierId])
+  @@map("contact_event")
 }
 
 model Verification {
@@ -1169,6 +1199,14 @@ enum NotificationChannel {
   PUSH
   IN_APP
   SMS
+}
+
+enum ContactChannel {
+  CHAT_CONTACT
+  PHONE
+  EMAIL
+  WHATSAPP
+  WEBSITE
 }
 
 enum NotificationStatus {

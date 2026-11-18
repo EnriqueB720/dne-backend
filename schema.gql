@@ -562,6 +562,13 @@ type RevenueByDayRow {
   bookings: Int!
 }
 
+type ReviewPrompt {
+  supplierId: Int!
+  companyName: String!
+  city: String
+  contactedAt: DateTime!
+}
+
 type LoginOutput {
   access_token: String!
   expiresAt: DateTime!
@@ -616,6 +623,7 @@ type Query {
   aiUsageBreakdown(adminUserId: Int!, daysBack: Int = 30): [AiUsageBreakdownRow!]!
   revenueByDay(adminUserId: Int!, daysBack: Int = 30): [RevenueByDayRow!]!
   servicesBySupplier(supplierId: Int!, includeInactive: Boolean): [Service!]!
+  reviewPrompts: [ReviewPrompt!]!
 }
 
 input UserWhereInput {
@@ -743,6 +751,8 @@ type Mutation {
   createService(data: ServiceCreateInput!): Service!
   updateService(data: ServiceUpdateInput!): Service!
   deleteService(data: ServiceDeleteInput!): Boolean!
+  logSupplierContact(data: ContactLogInput!): Boolean!
+  dismissReviewPrompt(supplierId: Int!): Boolean!
 }
 
 input UserCreateInput {
@@ -1140,6 +1150,22 @@ input ServiceUpdateInput {
 input ServiceDeleteInput {
   serviceId: Int!
   supplierId: Int!
+}
+
+input ContactLogInput {
+  supplierId: Int!
+  channel: ContactChannel!
+  source: String
+  deviceId: String
+}
+
+"""How a customer reached out to a supplier"""
+enum ContactChannel {
+  CHAT_CONTACT
+  PHONE
+  EMAIL
+  WHATSAPP
+  WEBSITE
 }
 
 type Subscription {
