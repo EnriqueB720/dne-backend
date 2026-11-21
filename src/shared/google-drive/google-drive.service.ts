@@ -95,10 +95,9 @@ export class GoogleDriveService {
         storageFileId: true,
         url: true,
         mimeType: true,
-        deletedAt: true,
       },
     })
-    if (!asset || asset.deletedAt) {
+    if (!asset) {
       throw new NotFoundException('Image not found')
     }
 
@@ -216,21 +215,37 @@ export class GoogleDriveService {
     )
   }
 
-  async uploadFile(
+  /** Upload for the signed-in user: their profile picture, or their own supplier gallery. */
+  async uploadForUser(
     file: MulterFile,
-    ownerId: number,
+    userId: number,
     ownerType: UploadOwnerType,
   ) {
     if (!file) {
       throw new BadRequestException('No file was uploaded')
     }
-    if (!Number.isFinite(ownerId) || ownerId <= 0) {
-      throw new BadRequestException('A valid owner id is required')
+    if (!Number.isFinite(userId) || userId <= 0) {
+      throw new BadRequestException('Sign in to upload photos')
+    }
+    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+      throw new BadRequestException('Photos must be PNG, JPEG, WebP or GIF')
+    }
+    if (file.size > MAX_GALLERY_BYTES) {
+      throw new BadRequestException('Photos must be 8MB or smaller')
     }
 
     if (ownerType === 'supplier') {
-      return await this.uploadSupplierPhoto(file, ownerId)
+      const supplier = await this.prismaService.supplier.findFirst({
+        where: { userId, deletedAt: null },
+        select: { supplierId: true },
+      })
+      if (!supplier) {
+        throw new BadRequestException('This account has no supplier profile')
+      }
+      return await this.uploadSupplierPhoto(file, supplier.supplierId)
     }
+
+    const ownerId = userId
 
     const fileId = await this.pushToDrive(
       file,
@@ -257,49 +272,27 @@ export class GoogleDriveService {
     file: MulterFile,
     supplierId: number,
   ) {
-    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
-      throw new BadRequestException(
-        'Gallery photos must be PNG, JPEG, WebP or GIF',
-      )
-    }
-    if (file.size > MAX_GALLERY_BYTES) {
-      throw new BadRequestException('Gallery photos must be 8MB or smaller')
-    }
-
-    const supplier = await this.prismaService.supplier.findUnique({
-      where: { supplierId },
-      select: { supplierId: true },
-    })
-    if (!supplier) {
-      throw new BadRequestException('Supplier not found')
-    }
-
     const fileId = await this.pushToDrive(
       file,
       `supplier-${supplierId}`,
       // Storefront photos live alongside user uploads, not post media.
       process.env.GOOGLE_DRIVE_FOLDER_ID,
     )
-    // Full-size for the profile hero, a small one for grid tiles.
     const url = this.driveImageUrl(fileId, 1600)
-    const thumbnailUrl = this.driveImageUrl(fileId, 400)
 
     // Append: one past the current highest position.
     const last = await this.prismaService.mediaAsset.findFirst({
-      where: { supplierId, deletedAt: null },
+      where: { supplierId },
       orderBy: { displayOrder: 'desc' },
       select: { displayOrder: true },
     })
 
     const asset = await this.prismaService.mediaAsset.create({
       data: {
-        ownerType: 'supplier',
-        ownerId: supplierId,
         supplierId,
         storageProvider: 'google-drive',
         storageFileId: fileId,
         url,
-        thumbnailUrl,
         mimeType: file.mimetype,
         sizeBytes: file.size,
         displayOrder: (last?.displayOrder ?? -1) + 1,

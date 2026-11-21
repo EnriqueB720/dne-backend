@@ -3,15 +3,20 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ChatMessageDto, ChatResponseDto } from '../dto';
 import { ChatProvider } from './chat-provider.interface';
 
+/** Fallback only (free tier). Used when Claude is unconfigured, failing or slow. */
 @Injectable()
 export class GeminiProvider implements ChatProvider {
   readonly key = 'gemini-flash' as const;
-  private readonly modelId = 'gemini-2.5-flash';
+  private readonly modelId = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   private readonly client: GoogleGenAI | null;
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
     this.client = apiKey ? new GoogleGenAI({ apiKey }) : null;
+  }
+
+  isConfigured(): boolean {
+    return this.client != null;
   }
 
   async send(

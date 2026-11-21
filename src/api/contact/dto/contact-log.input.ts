@@ -18,7 +18,7 @@ export class ContactLogInput {
   @Field(() => ContactChannel)
   channel: ContactChannel;
 
-  /** Where the click happened: 'chat' or 'storefront'. */
+  /** Where the click happened: 'chat' or 'profile'. */
   @Field({ nullable: true })
   source?: string;
 

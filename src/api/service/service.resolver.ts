@@ -1,47 +1,33 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { GraphQLFields, IGraphQLFields } from '@decorators';
+import { UseGuards } from '@nestjs/common';
+import { Args, Int, Mutation, Resolver } from '@nestjs/graphql';
 
-import { ServiceService } from './service.service';
+import { CurrentUser, GraphQLFields, IGraphQLFields } from '@decorators';
+import { JwtAuthGuard } from '../../shared/auth/guards';
+import { IAuthUser } from '../../shared/auth/model';
+import { ServiceInput } from './dto';
 import { Service, ServiceSelect } from './model';
-import {
-  ServiceCreateInput,
-  ServiceDeleteInput,
-  ServiceUpdateInput,
-  ServicesBySupplierArgs,
-} from './dto';
+import { ServiceService } from './service.service';
 
+/** The signed-in supplier's services. Read them through `supplier { services }`. */
 @Resolver(() => Service)
+@UseGuards(JwtAuthGuard)
 export class ServiceResolver {
   constructor(private readonly serviceService: ServiceService) {}
 
-  @Query(() => [Service])
-  public async servicesBySupplier(
-    @Args() args: ServicesBySupplierArgs,
-    @GraphQLFields() { fields }: IGraphQLFields<ServiceSelect>,
-  ): Promise<Service[]> {
-    return await this.serviceService.findManyBySupplier(args, fields);
-  }
-
   @Mutation(() => Service)
-  public async createService(
-    @Args('data') data: ServiceCreateInput,
+  public async saveMyService(
+    @Args('data') data: ServiceInput,
+    @CurrentUser() user: IAuthUser,
     @GraphQLFields() { fields }: IGraphQLFields<ServiceSelect>,
   ): Promise<Service> {
-    return await this.serviceService.create(data, fields);
-  }
-
-  @Mutation(() => Service)
-  public async updateService(
-    @Args('data') data: ServiceUpdateInput,
-    @GraphQLFields() { fields }: IGraphQLFields<ServiceSelect>,
-  ): Promise<Service> {
-    return await this.serviceService.update(data, fields);
+    return this.serviceService.save(Number(user.sub), data, fields);
   }
 
   @Mutation(() => Boolean)
-  public async deleteService(
-    @Args('data') data: ServiceDeleteInput,
+  public async deleteMyService(
+    @Args('serviceId', { type: () => Int }) serviceId: number,
+    @CurrentUser() user: IAuthUser,
   ): Promise<boolean> {
-    return await this.serviceService.delete(data);
+    return this.serviceService.remove(Number(user.sub), serviceId);
   }
 }

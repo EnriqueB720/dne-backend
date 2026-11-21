@@ -18,12 +18,6 @@ export class AiMessage {
   model?: string;
 
   @Field({ nullable: true })
-  inputTokens?: number;
-
-  @Field({ nullable: true })
-  outputTokens?: number;
-
-  @Field({ nullable: true })
   providersJson?: string;
 
   @Field()

@@ -22,7 +22,6 @@ export class ChatResolver {
     @Args('data') data: AiCompletionInput,
   ): Promise<AiCompletionResult> {
     const res = await this.chatService.send({
-      model: data.model,
       messages: data.messages,
       system: data.system,
       cachedSystem: data.cachedSystem,

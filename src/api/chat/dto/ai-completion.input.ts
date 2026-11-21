@@ -10,7 +10,6 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { SUPPORTED_MODELS, SupportedModel } from './chat-request.dto';
 
 @InputType()
 export class AiChatMessageInput {
@@ -31,10 +30,6 @@ export class AiChatMessageInput {
  */
 @InputType()
 export class AiCompletionInput {
-  @Field()
-  @IsIn(SUPPORTED_MODELS as unknown as string[])
-  model: SupportedModel;
-
   @Field(() => [AiChatMessageInput])
   @IsArray()
   @ArrayMinSize(1)

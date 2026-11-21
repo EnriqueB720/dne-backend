@@ -1,4 +1,4 @@
-import { SupportedModel } from './chat-request.dto';
+import { ModelKey } from './chat-request.dto';
 
 export interface ChatUsage {
   inputTokens?: number;
@@ -7,6 +7,7 @@ export interface ChatUsage {
 
 export class ChatResponseDto {
   content: string;
-  model: SupportedModel;
+  /** The provider that actually answered (after any fallback). */
+  model: ModelKey;
   usage?: ChatUsage;
 }

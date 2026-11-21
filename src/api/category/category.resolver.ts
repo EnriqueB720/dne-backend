@@ -1,33 +1,17 @@
-import { Query, Args, Mutation, Resolver } from '@nestjs/graphql';
+import { Query, Resolver } from '@nestjs/graphql';
+
+import { GraphQLFields, IGraphQLFields } from '@decorators';
 import { CategoryService } from './category.service';
 import { Category, CategorySelect } from './model';
-import { GraphQLFields, IGraphQLFields } from '@decorators';
-import { CategoryArgs, CategoryCreateInput } from './dto';
 
 @Resolver(() => Category)
 export class CategoryResolver {
   constructor(private readonly categoryService: CategoryService) {}
 
-  @Query(() => Category)
-  public async category(
-    @Args() args: CategoryArgs,
-    @GraphQLFields() { fields }: IGraphQLFields<CategorySelect>,
-  ): Promise<Category> {
-    return await this.categoryService.findOne(args, fields);
-  }
-
   @Query(() => [Category])
   public async categories(
     @GraphQLFields() { fields }: IGraphQLFields<CategorySelect>,
   ): Promise<Category[]> {
-    return await this.categoryService.findMany(fields);
-  }
-
-  @Mutation(() => Category)
-  public async createCategory(
-    @Args('data') data: CategoryCreateInput,
-    @GraphQLFields() { fields }: IGraphQLFields<CategorySelect>,
-  ): Promise<Category> {
-    return await this.categoryService.create(data, fields);
+    return this.categoryService.findMany(fields);
   }
 }

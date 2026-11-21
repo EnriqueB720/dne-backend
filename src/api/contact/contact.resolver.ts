@@ -7,7 +7,7 @@ import { JwtAuthGuard, OptionalJwtAuthGuard } from '../../shared/auth/guards';
 import { IAuthUser } from '../../shared/auth/model';
 import { ContactService } from './contact.service';
 import { ContactLogInput } from './dto';
-import { ReviewPrompt } from './model';
+import { ReviewPrompt, SavedContact } from './model';
 
 @Resolver()
 export class ContactResolver {
@@ -26,6 +26,23 @@ export class ContactResolver {
     @CurrentUser() user: IAuthUser | null,
   ): Promise<boolean> {
     return this.contactService.log(data, user ? Number(user.sub) : null);
+  }
+
+  /** Everyone the signed-in customer has contacted ("saved interactions"). */
+  @UseGuards(JwtAuthGuard)
+  @Query(() => [SavedContact])
+  public async mySavedContacts(@CurrentUser() user: IAuthUser): Promise<SavedContact[]> {
+    return this.contactService.savedContacts(Number(user.sub));
+  }
+
+  /** After sign-in: adopt the contacts this device made as a guest. */
+  @UseGuards(JwtAuthGuard)
+  @Mutation(() => Int)
+  public async mergeGuestContacts(
+    @Args('deviceId') deviceId: string,
+    @CurrentUser() user: IAuthUser,
+  ): Promise<number> {
+    return this.contactService.mergeGuestContacts(Number(user.sub), deviceId);
   }
 
   /** Suppliers the signed-in customer contacted and could now review. */

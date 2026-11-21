@@ -35,7 +35,7 @@ export interface SkillDraftSource {
   tagline: string | null;
   description: string | null;
   services: { name: string; description: string | null }[];
-  categories: { category: { categoryName: string } }[];
+  categories: { category: { nameEs: string; nameEn: string } }[];
 }
 
 /** Whether the profile has enough text for the AI to draft from. */
@@ -43,9 +43,9 @@ export function hasSkillDraftMaterial(s: SkillDraftSource): boolean {
   return !!(s.tagline || s.description || s.services.length > 0);
 }
 
-export const SKILL_DRAFT_SYSTEM_PROMPT = `You extract skills for a supplier on Solvo, a service marketplace in Costa Rica.
+export const SKILL_DRAFT_SYSTEM_PROMPT = `You extract skills for a supplier on Solvo, which connects customers in Costa Rica with service providers and material/product suppliers.
 
-A skill is a short, specific capability a customer might search for — 1 to 4 words, lowercase, e.g. "vegan menus", "wedding dj", "same-day ac repair", "drone photography", "kids parties".
+A skill is a short, specific capability a customer might search for — 1 to 4 words, lowercase, e.g. "fugas de agua", "pan sin gluten", "cemento y varilla", "wedding dj", "same-day ac repair".
 
 RULES:
 - Return ONLY a JSON array of strings, nothing else. Example: ["vegan menus", "corporate catering"]
@@ -68,7 +68,7 @@ export function buildSkillDraftPrompt(s: SkillDraftSource): string {
     );
   }
   if (s.categories.length > 0) {
-    lines.push('Categories: ' + s.categories.map((c) => c.category.categoryName).join(', '));
+    lines.push('Categories: ' + s.categories.map((c) => c.category.nameEs).join(', '));
   }
   return lines.join('\n');
 }

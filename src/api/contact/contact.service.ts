@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '@prisma-datasource';
 import { ContactLogInput } from './dto';
-import { ReviewPrompt } from './model';
+import { ReviewPrompt, SavedContact } from './model';
 
 /** Repeat clicks on the same supplier inside this window are one contact. */
 const CONTACT_DEDUPE_MS = 24 * 60 * 60 * 1000;
@@ -74,6 +74,76 @@ export class ContactService {
       },
     });
     return true;
+  }
+
+  /**
+   * Everyone the signed-in customer has reached out to, newest first — the
+   * "saved interactions" list. Guests have none (sign in to keep them).
+   */
+  public async savedContacts(userId: number): Promise<SavedContact[]> {
+    const customerId = await this.customerIdFor(userId);
+    if (customerId == null) return [];
+
+    const events = await this.prismaService.contactEvent.findMany({
+      where: { customerId, supplier: { deletedAt: null } },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      select: {
+        supplierId: true,
+        channel: true,
+        createdAt: true,
+        supplier: {
+          select: {
+            companyName: true,
+            city: true,
+            province: true,
+            businessPhone: true,
+            whatsappNumber: true,
+            businessEmail: true,
+            websiteUrl: true,
+            reviewsReceived: { where: { customerId }, select: { rating: true }, take: 1 },
+          },
+        },
+      },
+    });
+
+    const bySupplier = new Map<number, SavedContact>();
+    for (const e of events) {
+      const existing = bySupplier.get(e.supplierId);
+      if (existing) {
+        existing.contactCount += 1;
+        continue;
+      }
+      bySupplier.set(e.supplierId, {
+        supplierId: e.supplierId,
+        companyName: e.supplier.companyName,
+        city: e.supplier.city ?? undefined,
+        province: e.supplier.province ?? undefined,
+        businessPhone: e.supplier.businessPhone ?? undefined,
+        whatsappNumber: e.supplier.whatsappNumber ?? undefined,
+        businessEmail: e.supplier.businessEmail ?? undefined,
+        websiteUrl: e.supplier.websiteUrl ?? undefined,
+        lastContactedAt: e.createdAt,
+        lastChannel: e.channel,
+        contactCount: 1,
+        myRating: e.supplier.reviewsReceived[0]?.rating,
+      });
+    }
+    return [...bySupplier.values()];
+  }
+
+  /**
+   * Called right after sign-in: contacts made as a guest on this device
+   * become the customer's, so they show up in their saved list.
+   */
+  public async mergeGuestContacts(userId: number, deviceId: string): Promise<number> {
+    const customerId = await this.customerIdFor(userId);
+    if (customerId == null || !deviceId) return 0;
+    const { count } = await this.prismaService.contactEvent.updateMany({
+      where: { deviceId: deviceId.slice(0, 100), customerId: null },
+      data: { customerId, deviceId: null },
+    });
+    return count;
   }
 
   /**

@@ -1,6 +1,5 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
-import { SUPPORTED_MODELS, SupportedModel } from './chat-request.dto';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 @InputType()
 export class AiMessageSendInput {
@@ -12,11 +11,6 @@ export class AiMessageSendInput {
   @IsString()
   @MaxLength(8000)
   content: string;
-
-  @Field({ nullable: true })
-  @IsOptional()
-  @IsIn(SUPPORTED_MODELS as unknown as string[])
-  model?: SupportedModel;
 
   @Field({ nullable: true })
   @IsOptional()

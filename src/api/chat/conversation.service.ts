@@ -7,13 +7,22 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../shared/datasource/prisma/prisma.service';
 import { ChatService } from './chat.service';
-import {
-  CreateConversationDto,
-  UpdateConversationDto,
-  SendMessageDto,
-  SupportedModel,
-} from './dto';
 import { ChatMessageDto } from './dto';
+
+interface CreateConversationDto {
+  title: string;
+  deviceId?: string;
+}
+
+interface UpdateConversationDto {
+  title?: string;
+}
+
+interface SendMessageDto {
+  content: string;
+  system?: string;
+  cachedSystem?: string;
+}
 
 /**
  * Conversation-history context window, sized by an approximate TOKEN budget
@@ -62,7 +71,6 @@ export class ConversationService {
       select: {
         conversationId: true,
         title: true,
-        model: true,
         userId: true,
         deviceId: true,
         createdAt: true,
@@ -106,7 +114,6 @@ export class ConversationService {
         userId,
         deviceId,
         title: dto.title,
-        model: dto.model,
       },
     });
   }
@@ -129,7 +136,6 @@ export class ConversationService {
       where: { conversationId },
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
-        ...(dto.model !== undefined && { model: dto.model }),
       },
     });
   }
@@ -147,7 +153,6 @@ export class ConversationService {
     dto: SendMessageDto,
   ) {
     const conv = await this.assertOwnership(conversationId, caller);
-    const modelToUse = (dto.model ?? conv.model) as SupportedModel;
 
     await this.prisma.aiMessage.create({
       data: {
@@ -185,7 +190,6 @@ export class ConversationService {
       }));
 
     const aiResponse = await this.chatService.send({
-      model: modelToUse,
       messages: contextMessages,
       system: dto.system,
       cachedSystem: dto.cachedSystem,
@@ -200,8 +204,6 @@ export class ConversationService {
         role: 'assistant',
         content: aiResponse.content,
         model: aiResponse.model,
-        inputTokens: aiResponse.usage?.inputTokens,
-        outputTokens: aiResponse.usage?.outputTokens,
       },
     });
 
@@ -241,22 +243,6 @@ export class ConversationService {
     });
   }
 
-  /**
-   * Link a conversation to the Request it produced (set on "Select"). This
-   * connects the AI chat to the Request → Quote → Booking pipeline so the
-   * originating conversation is reachable from the request and vice-versa.
-   */
-  async linkToRequest(
-    conversationId: string,
-    requestId: number,
-    caller: CallerIdentity,
-  ) {
-    await this.assertOwnership(conversationId, caller);
-    return this.prisma.aiConversation.update({
-      where: { conversationId },
-      data: { requestId },
-    });
-  }
 
   /**
    * Undo the most recent turn — used when the user hits "stop" mid-response.

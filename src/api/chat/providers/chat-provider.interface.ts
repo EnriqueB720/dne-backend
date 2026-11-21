@@ -1,22 +1,14 @@
-import { ChatMessageDto, ChatResponseDto, SupportedModel } from '../dto';
+import { ChatMessageDto, ChatResponseDto, ModelKey } from '../dto';
 
 export interface ChatProvider {
-  readonly key: SupportedModel;
+  readonly key: ModelKey;
+  /** False when the provider's API key isn't set — ChatService skips it. */
+  isConfigured(): boolean;
   /**
-   * @param messages       conversation turns
-   * @param system         the DYNAMIC part of the system prompt (per-turn
-   *                       grounding) — changes every call, never cached
-   * @param cachedSystem   the STABLE prefix of the system prompt (the base
-   *                       instructions). Providers that support prompt
-   *                       caching (Anthropic) mark this for caching so it
-   *                       isn't re-billed/re-processed every turn; others
-   *                       simply prepend it.
+   * @param messages     conversation turns, oldest first
+   * @param system       the DYNAMIC part of the system prompt (per-turn grounding)
+   * @param cachedSystem the STABLE prefix (base instructions). Anthropic marks
+   *                     it for prompt caching; Gemini just prepends it.
    */
-  send(
-    messages: ChatMessageDto[],
-    system?: string,
-    cachedSystem?: string,
-  ): Promise<ChatResponseDto>;
+  send(messages: ChatMessageDto[], system?: string, cachedSystem?: string): Promise<ChatResponseDto>;
 }
-
-export const CHAT_PROVIDERS = Symbol('CHAT_PROVIDERS');

@@ -1,39 +1,18 @@
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '@prisma-datasource';
-import { CategoryArgs, CategoryCreateInput } from './dto';
 import { Category, CategorySelect } from './model';
 
 @Injectable()
 export class CategoryService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  public async findOne(
-    { where }: CategoryArgs,
-    { select }: CategorySelect,
-  ): Promise<Category> {
-    return await this.prismaService.category.findFirst({
-      where,
-      select,
-    });
-  }
-
-  /** Active categories for pickers (e.g. tagging a service on the settings page). */
+  /** Active categories in display order. Categories are seeded by migrations. */
   public async findMany({ select }: CategorySelect): Promise<Category[]> {
-    return await this.prismaService.category.findMany({
+    return (await this.prismaService.category.findMany({
       where: { active: true },
-      orderBy: [{ displayOrder: 'asc' }, { categoryName: 'asc' }],
+      orderBy: [{ displayOrder: 'asc' }, { nameEs: 'asc' }],
       select,
-    });
-  }
-
-  public async create(
-    data: CategoryCreateInput,
-    { select }: CategorySelect,
-  ): Promise<Category> {
-    return await this.prismaService.category.create({
-      data,
-      select,
-    });
+    })) as Category[];
   }
 }

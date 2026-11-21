@@ -17,9 +17,9 @@ import { UserSelect } from 'src/api/user/model';
 import { User } from 'src/api/user/model/user.model';
 import { UserService } from 'src/api/user/user.service';
 import { SupplierService } from 'src/api/supplier/supplier.service';
-import { Role } from '@prisma/client';
 import { PrismaService } from '@prisma-datasource';
 import { EmailService } from '../email/email.service';
+import { GeoService } from '../geo/geo.service';
 
 /**
  * Session length. Short on purpose: the frontend renews the token every
@@ -34,46 +34,13 @@ const USER_PROFILE_SELECT = {
   phone: true,
   language: true,
   country: true,
-  role: true,
   profilePicture: true,
   isCustomer: true,
   isSupplier: true,
   isAdmin: true,
   createdAt: true,
-  subscription: {
-    select: {
-      subscriptionId: true,
-      userId: true,
-      planId: true,
-      plan: {
-        select: {
-          planId: true,
-          planName: true,
-          price: true,
-          features: true,
-        },
-      },
-      status: true,
-      startDate: true,
-      endDate: true,
-    },
-  },
-  supplier: {
-    select: {
-      supplierId: true,
-      companyName: true,
-    },
-  },
-  customer: {
-    select: {
-      customerId: true,
-      userId: true,
-      defaultCity: true,
-      marketingOptIn: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  },
+  supplier: { select: { supplierId: true, companyName: true } },
+  customer: { select: { customerId: true } },
 } as const;
 
 interface SocialProfile {
@@ -95,6 +62,7 @@ export class AuthService {
     private readonly supplierService: SupplierService,
     private readonly prismaService: PrismaService,
     private readonly emailService: EmailService,
+    private readonly geoService: GeoService,
   ) {}
 
   /**
@@ -132,9 +100,7 @@ export class AuthService {
       throw new UnauthorizedException('Email is incorrect');
     }
 
-    const userPassword = await this.userService.findUserPassword({
-      where: { email },
-    });
+    const userPassword = await this.userService.findUserPassword(email);
 
     // OAuth-only accounts have no password — they must use social login.
     if (!userPassword) {
@@ -160,10 +126,11 @@ export class AuthService {
   }
 
   async signup(input: SignUpInput, _select: UserSelect) {
-    const existingPassword = await this.userService.findUserPassword({
+    const existing = await this.prismaService.user.findUnique({
       where: { email: input.email },
+      select: { userId: true },
     });
-    if (existingPassword) {
+    if (existing) {
       throw new ConflictException('User already exists');
     }
 
@@ -192,9 +159,6 @@ export class AuthService {
       phone: input.phone,
       country: input.country,
       password: passwordHash,
-      // Legacy single-role enum has no CUSTOMER value; the multi-role flags
-      // (isCustomer / isSupplier / isAdmin) are the real source of truth.
-      role: Role.SUPPLIER,
       profilePicture: input.profilePicture,
     };
 
@@ -215,17 +179,7 @@ export class AuthService {
         ...baseUser,
         isCustomer: false,
         isSupplier: true,
-        supplier: { create: { companyName: input.companyName! } },
-        subscription: {
-          create: [
-            {
-              planId: 1,
-              status: 'ACTIVE',
-              startDate: new Date(),
-              endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-            },
-          ],
-        },
+        supplier: { create: this.newSupplierData(input.companyName!, input.province) },
       },
       select: USER_PROFILE_SELECT,
     });
@@ -415,9 +369,7 @@ export class AuthService {
     }
 
     // 3) Brand-new person → create a pending account (no role yet).
-    const name = await this.uniqueName(
-      profile.name?.trim() || profile.email.split('@')[0],
-    );
+const name = (profile.name?.trim() || profile.email.split('@')[0]).slice(0, 100);
 
     const created = await this.prismaService.user.create({
       data: {
@@ -426,11 +378,7 @@ export class AuthService {
         // OAuth never supplies these; country defaults until onboarding.
         country: 'CR',
         profilePicture: profile.picture,
-        avatarUrl: profile.picture,
         emailVerifiedAt: new Date(),
-        // Legacy single-role enum has no neutral value; the multi-role flags
-        // (both false here) are the real source of truth for "pending".
-        role: Role.SUPPLIER,
         isCustomer: false,
         isSupplier: false,
         oauthAccounts: { create: { provider, providerId: profile.providerId } },
@@ -507,35 +455,13 @@ export class AuthService {
       throw new ConflictException('Company name already exists');
     }
 
-    // Attach a 14-day trial only if this environment actually has a pricing
-    // plan seeded. Hardcoding planId:1 blows up the FK when the plan table is
-    // empty (e.g. a fresh dev DB), so look one up instead.
-    const trialPlan = await this.prismaService.pricingPlan.findFirst({
-      orderBy: { planId: 'asc' },
-      select: { planId: true },
-    });
-
     const user = await this.prismaService.user.update({
       where: { userId },
       data: {
         ...base,
         isCustomer: false,
         isSupplier: true,
-        supplier: { create: { companyName: input.companyName } },
-        ...(trialPlan
-          ? {
-              subscription: {
-                create: [
-                  {
-                    planId: trialPlan.planId,
-                    status: 'ACTIVE',
-                    startDate: new Date(),
-                    endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-                  },
-                ],
-              },
-            }
-          : {}),
+        supplier: { create: this.newSupplierData(input.companyName, input.province) },
       },
       select: USER_PROFILE_SELECT,
     });
@@ -614,23 +540,15 @@ export class AuthService {
     };
   }
 
-  /**
-   * `User.name` is unique, but provider display names collide ("Juan Pérez").
-   * Append a numeric suffix until we find a free name.
-   */
-  private async uniqueName(base: string): Promise<string> {
-    const candidate = base.slice(0, 90);
-    let name = candidate;
-    let n = 1;
-    while (
-      await this.prismaService.user.findFirst({
-        where: { name },
-        select: { userId: true },
-      })
-    ) {
-      n += 1;
-      name = `${candidate} ${n}`;
-    }
-    return name;
+
+  /** A self-signup supplier row. Province (ISO 3166-2) is optional here and editable later. */
+  private newSupplierData(companyName: string, province?: string | null) {
+    const code = province && this.geoService.isProvinceCode(province) ? province.toUpperCase() : null;
+    return {
+      companyName: companyName.trim(),
+      province: code,
+      serviceProvinces: code ? [code] : [],
+      claimedAt: new Date(),
+    };
   }
 }

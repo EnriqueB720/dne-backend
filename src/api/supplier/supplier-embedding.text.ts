@@ -11,7 +11,7 @@ export interface SupplierEmbeddingSource {
   description: string | null;
   skills: string[];
   services: { name: string; description: string | null }[];
-  categories: { category: { categoryName: string } }[];
+  categories: { category: { nameEs: string; nameEn: string } }[];
 }
 
 export function buildSupplierEmbeddingText(s: SupplierEmbeddingSource): string {
@@ -31,7 +31,7 @@ export function buildSupplierEmbeddingText(s: SupplierEmbeddingSource): string {
   }
   if (s.categories.length > 0) {
     parts.push(
-      'Categories: ' + s.categories.map((c) => c.category.categoryName).join(', '),
+      'Categories: ' + s.categories.map((c) => `${c.category.nameEs} / ${c.category.nameEn}`).join(', '),
     );
   }
   return parts.join('. ');

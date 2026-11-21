@@ -1,45 +1,45 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, Mutation, Resolver } from '@nestjs/graphql';
-import { CurrentUser, GraphQLFields, IGraphQLFields } from '@decorators';
+import { Args, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Throttle } from '@nestjs/throttler';
 
+import { CurrentUser } from '@decorators';
+import { JwtAuthGuard, OptionalJwtAuthGuard } from '../../shared/auth/guards';
 import { IAuthUser } from '../../shared/auth/model';
-import { JwtAuthGuard } from '../../shared/auth/guards';
-import { Review, ReviewSelect } from '../supplier/model';
+import { ReviewInput } from './dto';
+import { ReviewView } from './model/review-view.model';
 import { ReviewService } from './review.service';
-import { ReviewCreateInput, ReviewDeleteInput, ReviewUpdateInput } from './dto';
 
-/**
- * Every review write needs a signed-in user — the reviewer is taken from
- * the token, not from the input.
- */
-@Resolver(() => Review)
-@UseGuards(JwtAuthGuard)
+@Resolver(() => ReviewView)
 export class ReviewResolver {
   constructor(private readonly reviewService: ReviewService) {}
 
-  @Mutation(() => Review)
-  public async createReview(
-    @Args('data') data: ReviewCreateInput,
-    @GraphQLFields() { fields }: IGraphQLFields<ReviewSelect>,
-    @CurrentUser() user: IAuthUser,
-  ): Promise<Review> {
-    return await this.reviewService.create(data, fields, Number(user.sub));
+  /** Public: a supplier's reviews, newest first. `isMine` needs a token. */
+  @UseGuards(OptionalJwtAuthGuard)
+  @Query(() => [ReviewView])
+  public async supplierReviews(
+    @Args('supplierId', { type: () => Int }) supplierId: number,
+    @CurrentUser() user: IAuthUser | null,
+  ): Promise<ReviewView[]> {
+    return this.reviewService.listForSupplier(supplierId, user ? Number(user.sub) : null);
   }
 
-  @Mutation(() => Review)
-  public async updateReview(
-    @Args('data') data: ReviewUpdateInput,
-    @GraphQLFields() { fields }: IGraphQLFields<ReviewSelect>,
+  /** Create or replace the signed-in customer's review of a supplier. */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @UseGuards(JwtAuthGuard)
+  @Mutation(() => ReviewView)
+  public async saveReview(
+    @Args('data') data: ReviewInput,
     @CurrentUser() user: IAuthUser,
-  ): Promise<Review> {
-    return await this.reviewService.update(data, fields, Number(user.sub));
+  ): Promise<ReviewView> {
+    return this.reviewService.upsert(Number(user.sub), data);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Mutation(() => Boolean)
   public async deleteReview(
-    @Args('data') data: ReviewDeleteInput,
+    @Args('reviewId', { type: () => Int }) reviewId: number,
     @CurrentUser() user: IAuthUser,
   ): Promise<boolean> {
-    return await this.reviewService.delete(data, Number(user.sub));
+    return this.reviewService.remove(Number(user.sub), reviewId);
   }
 }

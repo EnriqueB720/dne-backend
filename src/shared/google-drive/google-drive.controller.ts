@@ -5,15 +5,19 @@ import {
   Get,
   Param,
   Post,
+  Req,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 // Re-authorization flow at the bottom of this file also needs:
 //   ForbiddenException, Query from '@nestjs/common'
 //   { google } from 'googleapis'
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { HttpJwtAuthGuard } from '../auth/guards/http-jwt-auth.guard';
+import type { IAuthUser } from '../auth/model';
 import { GoogleDriveService, UploadOwnerType } from './google-drive.service';
 import type { MulterFile } from './uploaded-file.type';
 
@@ -22,32 +26,24 @@ export class GoogleDriveController {
   constructor(private readonly driveService: GoogleDriveService) {}
 
   /**
-   * `ownerType` is the current way to say what the file attaches to
-   * ('user' | 'supplier'). The older `isUser` flag is still honoured so
-   * existing callers keep working.
+   * Upload a photo for the signed-in user. `ownerType` says where it goes:
+   *  - 'user'     → the account's profile picture
+   *  - 'supplier' → appended to the user's own supplier gallery
+   * The owner is ALWAYS the token's user — never an id from the body.
    */
   @Post('upload')
+  @UseGuards(HttpJwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
-  async upload(@UploadedFile() file: MulterFile,
-               @Body('userOrPostId') userOrPostId: number,
-               @Body('ownerId') ownerId: number,
-               @Body('ownerType') ownerType: string,
-               @Body('isUser') isUser: string) {
-    const resolvedType: UploadOwnerType | null =
-      ownerType === 'supplier' || ownerType === 'user'
-        ? ownerType
-        : isUser === 'true'
-          ? 'user'
-          : null;
-    if (!resolvedType) {
+  async upload(
+    @UploadedFile() file: MulterFile,
+    @Body('ownerType') ownerType: string,
+    @Req() req: Request,
+  ) {
+    if (ownerType !== 'supplier' && ownerType !== 'user') {
       throw new BadRequestException("ownerType must be 'user' or 'supplier'");
     }
-
-    return this.driveService.uploadFile(
-      file,
-      Number(ownerId ?? userOrPostId),
-      resolvedType,
-    );
+    const userId = Number(((req as Request & { user?: IAuthUser }).user)?.sub);
+    return this.driveService.uploadForUser(file, userId, ownerType as UploadOwnerType);
   }
 
   /**

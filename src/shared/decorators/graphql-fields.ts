@@ -8,57 +8,46 @@ export interface IGraphQLFields<T> {
 }
 
 /**
- * GraphQL fields that are exposed as object/list types in the schema but are
- * backed by a Prisma `Json` column. We still want to fetch them, but Prisma
- * rejects nested `select` on JSON — it only accepts `{ field: true }`. So
- * the decorator must NOT recurse into the GraphQL sub-selection for these.
+ * GraphQL fields that are NOT columns: they're computed by a
+ * `@ResolveField` from other columns. The decorator swaps each one for the
+ * columns it needs, so the Prisma select stays valid and the resolver has
+ * its inputs. Keep in sync with SupplierResolver's @ResolveField methods.
  *
- * The error you'd see otherwise is Prisma's `SelectionSetOnScalar`.
+ * Why: a fact is stored once (`verifiedAt`), but the API can still offer
+ * the convenient shape (`verified: Boolean`).
  */
-const JSON_BACKED_FIELDS = new Set<string>([
-  'offeredSlots',
-]);
+const COMPUTED_FIELDS: Record<string, string[]> = {
+  verified: ['verifiedAt'],
+  preferred: ['preferredAt', 'preferredUntil'],
+  provinceName: ['province'],
+  serviceProvinceNames: ['serviceProvinces'],
+};
 
 /**
  * Convert the GraphQL field tree returned by graphql-fields() into a Prisma
  * `select` object.
  *
- * Apollo Client auto-injects `__typename` at every level for cache normalization.
- * That field doesn't exist on Prisma models, so we strip it out at every depth
- * before walking the tree. Without this, the reducer's accumulator gets
- * corrupted as soon as __typename is processed, and nested relation keys get
- * dropped from the final select.
+ * Apollo Client auto-injects `__typename` at every level for cache
+ * normalization; it isn't a Prisma field, so it's stripped at every depth.
  */
-const parsePrismaSelect = (example: Record<string, any>): { select: Record<string, any> } => {
-  const keys = Object.keys(example).filter((k) => k !== '__typename');
+export const parsePrismaSelect = (example: Record<string, any>): { select: Record<string, any> } => {
+  const select: Record<string, any> = {};
 
-  return keys.reduce(
-    (acc, key) => {
-      const field = example[key];
-      const childKeys = Object.keys(field).filter((k) => k !== '__typename');
+  for (const key of Object.keys(example)) {
+    if (key === '__typename') continue;
 
-      // JSON-backed fields: always select with `true` (Prisma can't take
-      // a nested select on JSON, even when the GraphQL query asks for
-      // sub-fields).
-      if (JSON_BACKED_FIELDS.has(key)) {
-        return { select: { ...acc.select, [key]: true } };
-      }
+    const deps = COMPUTED_FIELDS[key];
+    if (deps) {
+      for (const dep of deps) select[dep] = select[dep] ?? true;
+      continue;
+    }
 
-      if (childKeys.length === 0) {
-        // Scalar — `{ key: true }`
-        return { select: { ...acc.select, [key]: true } };
-      }
+    const field = example[key];
+    const childKeys = Object.keys(field).filter((k) => k !== '__typename');
+    select[key] = childKeys.length === 0 ? true : parsePrismaSelect(field);
+  }
 
-      // Relation / nested object — recurse
-      return {
-        select: {
-          ...acc.select,
-          [key]: parsePrismaSelect(field),
-        },
-      };
-    },
-    { select: {} as Record<string, any> },
-  );
+  return { select };
 };
 
 export const GraphQLFields: () => ParameterDecorator = createParamDecorator(

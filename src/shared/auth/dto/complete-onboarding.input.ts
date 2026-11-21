@@ -24,4 +24,9 @@ export class CompleteOnboardingInput {
   @IsOptional()
   @Field({ nullable: true })
   country?: string;
+
+  /** Supplier only: ISO 3166-2 province, e.g. "CR-H". */
+  @IsOptional()
+  @Field({ nullable: true })
+  province?: string;
 }

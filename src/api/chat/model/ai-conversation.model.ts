@@ -10,16 +10,10 @@ export class AiConversation {
   title: string;
 
   @Field()
-  model: string;
-
-  @Field()
   deviceId: string;
 
   @Field({ nullable: true })
   userId?: number;
-
-  @Field({ nullable: true })
-  requestId?: number;
 
   @Field()
   createdAt: Date;

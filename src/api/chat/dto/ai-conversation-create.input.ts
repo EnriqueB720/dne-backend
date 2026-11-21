@@ -1,6 +1,5 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
-import { SUPPORTED_MODELS, SupportedModel } from './chat-request.dto';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 @InputType()
 export class AiConversationCreateInput {
@@ -8,11 +7,6 @@ export class AiConversationCreateInput {
   @IsString()
   @MaxLength(255)
   title: string;
-
-  @Field()
-  @IsString()
-  @IsIn(SUPPORTED_MODELS as unknown as string[])
-  model: SupportedModel;
 
   /**
    * Optional client-provided device id (used for guest / unauthenticated chats).

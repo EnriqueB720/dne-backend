@@ -1,30 +1,28 @@
-import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
-import { Prisma, PromotionTier } from '@prisma/client';
-import { User } from 'src/api/user/model';
+import { Field, Int, ObjectType } from '@nestjs/graphql';
+import { Prisma, SupplierSource } from '@prisma/client';
+import { registerEnumType } from '@nestjs/graphql';
+
 import { Service } from 'src/api/service/model';
-import { Category } from 'src/api/category/model';
-import { Review } from './review.model';
 import { SupplierCategory } from './supplier-category.model';
 import { MediaAsset } from './media-asset.model';
 
-registerEnumType(PromotionTier, {
-  name: 'PromotionTier',
-  description: 'Sponsored-placement tier on a supplier',
+registerEnumType(SupplierSource, {
+  name: 'SupplierSource',
+  description: 'How the supplier row was created',
 });
 
+/**
+ * Public supplier profile. Everything here is safe to show anyone — the
+ * owning user (email, phone) is deliberately NOT exposed; only the
+ * business contact fields the supplier chose to publish are.
+ */
 @ObjectType()
 export class Supplier {
-  @Field()
+  @Field(() => Int)
   supplierId: number;
-
-  @Field(() => User, { nullable: true })
-  user?: User;
 
   @Field()
   companyName: string;
-
-  @Field({ nullable: true })
-  slug?: string;
 
   @Field({ nullable: true })
   tagline?: string;
@@ -32,7 +30,7 @@ export class Supplier {
   @Field({ nullable: true })
   description?: string;
 
-  /** Free-text capabilities that narrow AI matching (lowercase, deduped). */
+  /** Lowercase capabilities that sharpen AI matching ("fugas", "wedding dj"). */
   @Field(() => [String], { nullable: true })
   skills?: string[];
 
@@ -40,11 +38,10 @@ export class Supplier {
   businessPhone?: string;
 
   @Field({ nullable: true })
-  businessEmail?: string;
-
-  /** Optional second phone / email — a supplier may publish up to two of each. */
-  @Field({ nullable: true })
   businessPhoneAlt?: string;
+
+  @Field({ nullable: true })
+  businessEmail?: string;
 
   @Field({ nullable: true })
   businessEmailAlt?: string;
@@ -55,38 +52,44 @@ export class Supplier {
   @Field({ nullable: true })
   websiteUrl?: string;
 
+  /** ISO 3166-2 code of the province the business is based in, e.g. "CR-H". */
+  @Field({ nullable: true })
+  province?: string;
+
+  /** Every province served (includes `province`). */
+  @Field(() => [String], { nullable: true })
+  serviceProvinces?: string[];
+
   @Field({ nullable: true })
   city?: string;
 
+  @Field({ nullable: true })
+  address?: string;
+
+  /** Average stars of visible reviews (string to keep decimal precision). */
   @Field(() => String, { nullable: true })
   rating?: Prisma.Decimal;
 
-  @Field({ nullable: true })
+  @Field(() => Int, { nullable: true })
   reviewCount?: number;
 
   @Field({ nullable: true })
-  responseTimeMinutes?: number;
+  verifiedAt?: Date;
 
   @Field({ nullable: true })
-  minCapacity?: number;
+  preferredAt?: Date;
 
   @Field({ nullable: true })
-  maxCapacity?: number;
+  preferredUntil?: Date;
+
+  @Field(() => SupplierSource, { nullable: true })
+  source?: SupplierSource;
 
   @Field({ nullable: true })
-  verified?: boolean;
+  claimedAt?: Date;
 
   @Field({ nullable: true })
-  premium?: boolean;
-
-  @Field(() => PromotionTier)
-  promotionTier: PromotionTier;
-
-  @Field({ nullable: true })
-  promotionStartDate?: Date;
-
-  @Field({ nullable: true })
-  promotionEndDate?: Date;
+  createdAt?: Date;
 
   @Field(() => [Service], { nullable: true })
   services?: Service[];
@@ -94,10 +97,14 @@ export class Supplier {
   @Field(() => [SupplierCategory], { nullable: true })
   categories?: SupplierCategory[];
 
-  @Field(() => [Review], { nullable: true })
-  reviewsReceived?: Review[];
-
-  /** Storefront gallery photos, ascending by `displayOrder`. */
+  /** Gallery photos, ascending by `displayOrder` (index 0 = cover). */
   @Field(() => [MediaAsset], { nullable: true })
   media?: MediaAsset[];
+
+  // Computed (see SupplierResolver @ResolveField + COMPUTED_FIELDS):
+  // verified, preferred, provinceName, serviceProvinceNames.
+  verified?: boolean;
+  preferred?: boolean;
+  provinceName?: string;
+  serviceProvinceNames?: string[];
 }

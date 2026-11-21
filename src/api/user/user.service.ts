@@ -1,59 +1,49 @@
-import { Injectable } from '@nestjs/common';
-import { User, UserSelect } from './model';
-import { UserArgs, UserCreateInput, UserUpdateInput, UserWhereInput } from './dto';
+import { ConflictException, Injectable } from '@nestjs/common';
+
 import { PrismaService } from '@prisma-datasource';
+import { UserUpdateInput } from './dto';
+import { User, UserSelect } from './model';
 
 @Injectable()
 export class UserService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  public async findOne(
-    { where }: UserArgs,
-    { select }: UserSelect,
-  ): Promise<User> {
-    return await this.prismaService.user.findFirst({
-      where,
+  public async findById(userId: number, { select }: UserSelect): Promise<User> {
+    return (await this.prismaService.user.findFirst({
+      where: { userId, deletedAt: null },
       select,
-    });
+    })) as unknown as User;
   }
 
-  public async findUserPassword({ where: { email } }: UserArgs) {
+  public async findUserPassword(email: string): Promise<string | null> {
     const user = await this.prismaService.user.findUnique({
-      where: {
-        email,
-      },
+      where: { email },
+      select: { password: true },
     });
-    return user ? user.password : null;
-  }
-
-  public async create(
-    { subscription, companyName, ...data }: UserCreateInput,
-    { select }: UserSelect,
-  ): Promise<User> {
-    return await this.prismaService.user.create({
-      data: {
-        ...data,
-        subscription: {
-          create: [subscription],
-        },
-        supplier: {
-          create: {
-            companyName: companyName,
-          },
-        },
-      },
-      select,
-    });
+    return user?.password ?? null;
   }
 
   public async update(
-    { userId, ...data }: UserUpdateInput,
+    userId: number,
+    data: UserUpdateInput,
     { select }: UserSelect,
   ): Promise<User> {
-    return await this.prismaService.user.update({
+    if (data.phone) {
+      const taken = await this.prismaService.user.findFirst({
+        where: { phone: data.phone, NOT: { userId } },
+        select: { userId: true },
+      });
+      if (taken) throw new ConflictException('Phone number already in use');
+    }
+    return (await this.prismaService.user.update({
       where: { userId },
-      data,
+      data: {
+        name: data.name?.trim() || undefined,
+        phone: data.phone === '' ? null : data.phone,
+        language: data.language,
+        profilePicture: data.profilePicture === '' ? null : data.profilePicture,
+      },
       select,
-    });
+    })) as unknown as User;
   }
 }

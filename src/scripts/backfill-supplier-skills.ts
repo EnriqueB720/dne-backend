@@ -10,8 +10,8 @@
  * existed before skills did. Safe to re-run: suppliers that already have
  * skills, including ones they wrote themselves, are never touched.
  *
- * Env: needs at least one chat model key (ANTHROPIC_API_KEY, OPENAI_API_KEY
- *      or GEMINI_API_KEY); the re-embed also needs OPENAI_API_KEY.
+ * Env: needs at least one chat model key (ANTHROPIC_API_KEY or
+ *      GEMINI_API_KEY); the re-embed also needs OPENAI_API_KEY.
  */
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';

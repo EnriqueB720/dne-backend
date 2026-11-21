@@ -1,14 +1,12 @@
-import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
-import { Language, Role } from '@prisma/client';
-import { Subscription } from 'src/api/subscription/model';
-import { Supplier } from 'src/api/supplier/model';
-import { Customer } from 'src/api/customer/model';
+import { Field, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { Language } from '@prisma/client';
 
-//additional imports for users
+import { Supplier } from 'src/api/supplier/model';
+import { Customer } from './customer.model';
 
 @ObjectType()
 export class User {
-  @Field(() => Number)
+  @Field(() => Int)
   userId?: number;
 
   @Field()
@@ -17,18 +15,16 @@ export class User {
   @Field()
   name?: string;
 
-  // Nullable: OAuth users have no phone until they finish onboarding.
+  /** Null for social-login users until they finish onboarding. */
   @Field({ nullable: true })
   phone?: string;
 
   @Field(() => Language)
   language?: Language;
 
+  /** ISO 3166-1 alpha-2. */
   @Field()
   country?: string;
-
-  @Field(() => Role)
-  role?: Role;
 
   @Field(() => String, { nullable: true })
   profilePicture?: string;
@@ -42,12 +38,11 @@ export class User {
   @Field({ nullable: true })
   isAdmin?: boolean;
 
-  //additional models
-  @Field(() => [Subscription], { nullable: true })
-  subscription?: Subscription[];
+  @Field({ nullable: true })
+  createdAt?: Date;
 
-  @Field(() => [Supplier], { nullable: true })
-  supplier?: Supplier[];
+  @Field(() => Supplier, { nullable: true })
+  supplier?: Supplier;
 
   @Field(() => Customer, { nullable: true })
   customer?: Customer;
@@ -56,9 +51,4 @@ export class User {
 registerEnumType(Language, {
   name: 'Language',
   description: 'Supported languages for users',
-});
-
-registerEnumType(Role, {
-  name: 'Role',
-  description: 'Supported roles for users',
 });

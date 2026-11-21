@@ -69,7 +69,7 @@ async function main() {
       description: true,
       skills: true,
       services: { select: { name: true, description: true } },
-      categories: { select: { category: { select: { categoryName: true } } } },
+      categories: { select: { category: { select: { nameEs: true, nameEn: true } } } },
     },
   });
 
