@@ -1,6 +1,5 @@
 import { ServiceSelect } from 'src/api/service/model';
 import { SupplierCategorySelect } from './supplier-category.select.model';
-import { MediaAssetSelect } from './media-asset.select.model';
 
 interface SupplierPrismaSelect {
   supplierId?: boolean;
@@ -28,7 +27,6 @@ interface SupplierPrismaSelect {
   createdAt?: boolean;
   services?: ServiceSelect;
   categories?: SupplierCategorySelect;
-  media?: MediaAssetSelect;
 }
 
 export interface SupplierSelect {

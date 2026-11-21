@@ -18,7 +18,7 @@ PostgreSQL 17 with the `vector` extension (pgvector). Schema source of truth:
   rows, recomputed by `ReviewService` in the same transaction as any review
   write. Never write them anywhere else.
 
-## Tables (16)
+## Tables (15)
 
 | Table | Purpose |
 |---|---|
@@ -30,7 +30,6 @@ PostgreSQL 17 with the `vector` extension (pgvector). Schema source of truth:
 | `category` | Bilingual categories (`slug`, `name_es`, `name_en`, `icon`). Seeded by migrations — services AND material/product suppliers. |
 | `supplier_category` | Supplier ↔ category (1–5 per supplier, one `is_primary`). |
 | `service` | Services/products listed on a profile, optional `price_from` + free-text `price_unit`. |
-| `media_asset` | Profile photos (bytes in Google Drive; `display_order` 0 = cover). |
 | `review` | 1–5 stars + text, **unique (customer_id, supplier_id)**. |
 | `contact_event` | A customer (or guest device) reaching out to a supplier, by channel. Saved interactions, review prompts, analytics. |
 | `ai_conversation` / `ai_message` | Persisted AI chats (owner: `user_id`, else `device_id`). `providers_json` keeps the cards shown under a reply. |
@@ -68,8 +67,6 @@ search), `supplier_province_idx`, `supplier_description_embedding_hnsw_idx`
 | `category."categoryName"` | duplicated `name_en` | `name_en` / `name_es` |
 | `service.category_id` | duplicated the supplier's categories | supplier categories |
 | `service.active` + `deleted_at` | two "hidden" flags | hard delete |
-| `media_asset.owner_type` / `owner_id` | duplicated `supplier_id` | `supplier_id` |
-| `media_asset.deleted_at` | rows are hard-deleted | — |
 | `ai_conversation.model` | per-message `ai_message.model` already says who answered (and the model is no longer user-picked) | `ai_message.model` |
 | `ai_message.input_tokens` / `output_tokens` | duplicated `ai_usage_log` | `ai_usage_log` |
 | `review` sub-ratings, `supplier_response`, `hidden*`, `booking_id` | unused / booking-only | `rating` + `text` |
@@ -79,6 +76,11 @@ Also unused and dropped: `supplier.slug`, `min/max_capacity`,
 `response_time_minutes`, `customer.default_*`, `marketing_opt_in`,
 `user.timezone`, `phone_verified_at`, `last_login_at`,
 `scrape_source.refresh_due_at`, `takedown_*`, 22 enums.
+
+`20261121000000_drop_media_asset` then dropped the `media_asset` table:
+supplier photos were removed from the product to keep it minimal (the old
+image files are still in the Google Drive folder; delete them by hand if
+wanted).
 
 **Data kept and transformed** before anything was dropped: provinces
 backfilled from `city` and the old service-area cities; `verified_at` /

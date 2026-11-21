@@ -9,7 +9,6 @@ import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@prisma-datasource';
 import { GeoService, ProvinceResolution } from '../../shared/geo';
-import { GoogleDriveService } from '../../shared/google-drive/google-drive.service';
 import { ChatService } from '../chat/chat.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { SupplierCategoriesInput, SupplierSearchInput, SupplierUpdateInput } from './dto';
@@ -71,7 +70,6 @@ export class SupplierService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly embeddingService: EmbeddingService,
-    private readonly googleDriveService: GoogleDriveService,
     private readonly chatService: ChatService,
     private readonly geoService: GeoService,
   ) {}
@@ -90,20 +88,10 @@ export class SupplierService {
 
   // ── Reads ───────────────────────────────────────────────────────────
 
-  /** Services oldest-first, photos in the supplier's chosen order. */
+  /** Services oldest-first. */
   private withRelationFilters(select: any): any {
-    if (!select) return select;
-    const merged: any = { ...select };
-    if (merged.services) {
-      merged.services = { ...merged.services, orderBy: [{ serviceId: 'asc' }] };
-    }
-    if (merged.media) {
-      merged.media = {
-        ...merged.media,
-        orderBy: [{ displayOrder: 'asc' }, { mediaAssetId: 'asc' }],
-      };
-    }
-    return merged;
+    if (!select?.services) return select;
+    return { ...select, services: { ...select.services, orderBy: [{ serviceId: 'asc' }] } };
   }
 
   public async findPublic(supplierId: number, { select }: SupplierSelect): Promise<Supplier> {
@@ -448,41 +436,6 @@ export class SupplierService {
       throw new BadRequestException('Add a description or some services first — the AI drafts skills from them');
     }
     return this.draftSkills(supplier);
-  }
-
-  public async deleteMedia(userId: number, mediaAssetId: number): Promise<boolean> {
-    const supplierId = await this.supplierIdForUser(userId);
-    const asset = await this.prismaService.mediaAsset.findUnique({
-      where: { mediaAssetId },
-      select: { supplierId: true, storageFileId: true },
-    });
-    if (!asset || asset.supplierId !== supplierId) throw new NotFoundException('Photo not found');
-
-    await this.googleDriveService.deleteStoredFile(asset.storageFileId);
-    await this.prismaService.mediaAsset.delete({ where: { mediaAssetId } });
-    return true;
-  }
-
-  /** Position in the array becomes `displayOrder`; foreign ids are ignored. */
-  public async reorderMedia(userId: number, mediaAssetIds: number[]): Promise<boolean> {
-    const supplierId = await this.supplierIdForUser(userId);
-    const owned = new Set(
-      (
-        await this.prismaService.mediaAsset.findMany({
-          where: { supplierId },
-          select: { mediaAssetId: true },
-        })
-      ).map((a) => a.mediaAssetId),
-    );
-    const ordered = mediaAssetIds.filter((id) => owned.has(id));
-    if (ordered.length === 0) return true;
-
-    await this.prismaService.$transaction(
-      ordered.map((mediaAssetId, index) =>
-        this.prismaService.mediaAsset.update({ where: { mediaAssetId }, data: { displayOrder: index } }),
-      ),
-    );
-    return true;
   }
 
   /** Contacts and reviews, for the supplier's own page. */

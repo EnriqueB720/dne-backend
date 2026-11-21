@@ -5,10 +5,9 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { PrismaModule } from './shared/datasource/prisma/prisma.module';
 import { ConfigModule } from 'src/shared/config/config.module';
-import { GoogleDriveModule } from './shared/google-drive/google-drive.module';
 import { JwtModule } from '@nestjs/jwt';
 import { GqlThrottlerGuard } from './shared/throttler/gql-throttler.guard';
-import { UserModule, SupplierModule, CategoryModule, ChatModule, AdminModule, EmbeddingModule, ReviewModule, ServiceModule, ContactModule } from '@apis';
+import { UserModule, SupplierModule, CategoryModule, ChatModule, AdminModule, EmbeddingModule, ReviewModule, ServiceModule, ContactModule, AssistantModule } from '@apis';
 import { GeoModule } from './shared/geo/geo.module';
 import { AuthModule } from './shared/auth/auth.module';
 import { HealthModule } from './shared/health/health.module';
@@ -67,7 +66,6 @@ const isProd = process.env.NODE_ENV === 'production';
     PrismaModule,
     GeoModule,
     UserModule,
-    GoogleDriveModule,
     AuthModule,
     SupplierModule,
     CategoryModule,
@@ -77,6 +75,7 @@ const isProd = process.env.NODE_ENV === 'production';
     ReviewModule,
     ServiceModule,
     ContactModule,
+    AssistantModule,
     HealthModule,
     EmailModule,
   ],

@@ -7,6 +7,7 @@ import { EmbeddingModule } from './embedding/embedding.module';
 import { ReviewModule } from './review/review.module';
 import { ServiceModule } from './service/service.module';
 import { ContactModule } from './contact/contact.module';
+import { AssistantModule } from './assistant/assistant.module';
 
 export {
   UserModule,
@@ -18,4 +19,5 @@ export {
   ReviewModule,
   ServiceModule,
   ContactModule,
+  AssistantModule,
 };

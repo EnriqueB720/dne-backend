@@ -25,8 +25,7 @@ npm run start:dev                 # http://localhost:5000/graphql
 ## Environment
 
 See [.env.example](.env.example). Required: `DATABASE_URL`, `JWT_SECRET`,
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`,
-`GOOGLE_DRIVE_FOLDER_ID`. AI: `ANTHROPIC_API_KEY` (primary) and/or
+`GOOGLE_CLIENT_ID` (verifies Google sign-in). AI: `ANTHROPIC_API_KEY` (primary) and/or
 `GEMINI_API_KEY` (fallback); `OPENAI_API_KEY` only for semantic-search
 embeddings (keyword search works without it).
 

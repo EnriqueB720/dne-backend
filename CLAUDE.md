@@ -29,8 +29,11 @@ and mark some as preferred.
 - **Provinces are ISO 3166-2 codes.** Names and place lookups live in
   `src/shared/geo`. `supplier.service_provinces` must always include
   `supplier.province` (use `GeoService.normalizeServiceProvinces`).
-- **GraphQL is the API.** Only REST endpoints: `POST /files/upload`,
-  `GET /files/media/:id`, `GET /health`.
+- **GraphQL is the API.** The only REST endpoint is `GET /health`.
+- **Prompts live server-side** in `src/api/assistant` (`prompts.ts`,
+  `intent.ts`). The client sends only the message and where the user is
+  (`chatTurn`). Never add an endpoint that accepts a prompt from the client.
+- **No supplier photos.** They were removed on purpose (keep it minimal).
 - Migrations: move data before dropping; strip the HNSW index drop that
   `prisma migrate diff` always proposes.
 
@@ -39,7 +42,7 @@ and mark some as preferred.
 ```bash
 npm run start:dev        # API on :5000, writes schema.gql
 npx tsc --noEmit         # type-check
-npm test                 # unit tests (geo, chat fallback)
+npm test                 # unit tests (geo, chat fallback, chat turn)
 npm run prisma:generate  # after schema edits
 ```
 

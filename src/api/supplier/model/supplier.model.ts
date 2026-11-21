@@ -4,7 +4,6 @@ import { registerEnumType } from '@nestjs/graphql';
 
 import { Service } from 'src/api/service/model';
 import { SupplierCategory } from './supplier-category.model';
-import { MediaAsset } from './media-asset.model';
 
 registerEnumType(SupplierSource, {
   name: 'SupplierSource',
@@ -96,10 +95,6 @@ export class Supplier {
 
   @Field(() => [SupplierCategory], { nullable: true })
   categories?: SupplierCategory[];
-
-  /** Gallery photos, ascending by `displayOrder` (index 0 = cover). */
-  @Field(() => [MediaAsset], { nullable: true })
-  media?: MediaAsset[];
 
   // Computed (see SupplierResolver @ResolveField + COMPUTED_FIELDS):
   // verified, preferred, provinceName, serviceProvinceNames.

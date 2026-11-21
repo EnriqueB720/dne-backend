@@ -166,7 +166,6 @@ model Supplier {
   categories      SupplierCategory[]
   reviewsReceived Review[]           @relation("SupplierReviews")
   contactEvents   ContactEvent[]
-  media           MediaAsset[]
   scrapeSources   ScrapeSource[]
 
   @@index([province])
@@ -225,25 +224,6 @@ model Service {
 
   @@index([supplierId])
   @@map("service")
-}
-
-/// Profile gallery photo. Bytes live in Google Drive; `storageFileId` is
-/// the Drive id used to stream and delete them.
-model MediaAsset {
-  mediaAssetId    Int      @id @default(autoincrement()) @map("media_asset_id")
-  supplierId      Int      @map("supplier_id")
-  supplier        Supplier @relation(fields: [supplierId], references: [supplierId], onDelete: Cascade)
-  storageProvider String   @default("google-drive") @map("storage_provider")
-  storageFileId   String?  @map("storage_file_id")
-  url             String
-  mimeType        String   @map("mime_type")
-  sizeBytes       Int      @map("size_bytes")
-  altText         String?  @map("alt_text")
-  displayOrder    Int      @default(0) @map("display_order")
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  @@index([supplierId])
-  @@map("media_asset")
 }
 
 /// Raw import payload for suppliers created by dne-scraper (Google Places).

@@ -103,25 +103,6 @@ export class SupplierResolver {
     return this.supplierService.suggestSkills(Number(user.sub));
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Mutation(() => Boolean)
-  public async deleteMySupplierMedia(
-    @Args('mediaAssetId', { type: () => Int }) mediaAssetId: number,
-    @CurrentUser() user: IAuthUser,
-  ): Promise<boolean> {
-    return this.supplierService.deleteMedia(Number(user.sub), mediaAssetId);
-  }
-
-  /** Index 0 becomes the cover photo. */
-  @UseGuards(JwtAuthGuard)
-  @Mutation(() => Boolean)
-  public async reorderMySupplierMedia(
-    @Args('mediaAssetIds', { type: () => [Int] }) mediaAssetIds: number[],
-    @CurrentUser() user: IAuthUser,
-  ): Promise<boolean> {
-    return this.supplierService.reorderMedia(Number(user.sub), mediaAssetIds);
-  }
-
   // ── Computed fields (inputs mapped in shared/decorators/graphql-fields.ts) ──
 
   @ResolveField(() => Boolean)

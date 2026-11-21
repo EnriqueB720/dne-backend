@@ -24,7 +24,6 @@ Data model details are in [DATABASE.md](./DATABASE.md).
 | Prisma 6 | PostgreSQL 17 + **pgvector** (`supplier.description_embedding`) |
 | Auth | Own JWT (1 h, renewed by the frontend every 15 min); Google/GitHub via NextAuth on the frontend → `socialLogin` mutation |
 | AI | Claude (`@anthropic-ai/sdk`) first, Gemini (`@google/genai`) as automatic fallback. OpenAI only for embeddings |
-| Storage | Google Drive for supplier photos (streamed back through `GET /files/media/:id`) |
 | Ops | pino logs, Sentry, throttling (`@nestjs/throttler`), `/health` |
 
 ## Module map (`src/`)
@@ -37,14 +36,14 @@ api/
   category/      categories (bilingual)
   review/        supplierReviews (public), saveReview / deleteReview (JWT customer)
   contact/       logSupplierContact (guest ok), mySavedContacts, review prompts
-  chat/          ChatService (Claude → Gemini), aiComplete, persisted AI chats
+  assistant/     chatTurn: parse → province search → grounded reply → save (all prompts here)
+  chat/          ChatService (Claude → Gemini), persisted AI chats (read/delete)
   embedding/     OpenAI text-embedding-3-small wrapper
   ai-usage-log/  one row per model call (tokens + estimated cost)
   admin/         adminOverview, adminSuppliers, verify, preferred (JWT + admin)
 shared/
   auth/          login, signup, socialLogin, completeOnboarding, refresh, password reset; guards
   geo/           Costa Rica provinces/cantons registry + province resolution
-  google-drive/  POST /files/upload (JWT), GET /files/media/:id
   decorators/    @GraphQLFields (GraphQL selection → Prisma select), @CurrentUser
   config/, datasource/prisma/, email/ (Resend), health/, throttler/
 scripts/         backfills (embeddings, skills, provinces)
@@ -54,14 +53,34 @@ scripts/         backfills (embeddings, skills, provinces)
 
 ### 1. AI chat search (the product)
 
-The frontend orchestrates a turn (see `dne-frontend/docs/ARCHITECTURE.md`); the
-API provides three pieces:
+One mutation does a whole turn: **`chatTurn(data: { conversationId?, message,
+deviceId?, province?, lat?, lng? })`** (`src/api/assistant`). The client sends
+only the message and where the user is; prompts never leave the server.
 
-1. **`aiComplete`** — stateless completion used for intent parsing.
-2. **`searchSuppliers(data: SupplierSearchInput)`** — the DB lookup.
-3. **`sendAiMessage`** — persists the user message, calls the model with the
-   conversation history + a grounding block describing the suppliers found,
-   persists the reply.
+```
+ChatTurnService.run
+  1. turnContext   history (token-budgeted), last 2 user messages, last cards shown
+  2. parseQuery    intent + service + place            (intent.ts, Claude → Gemini)
+     overrides:    "y en Cartago?" → new search; question about shown cards → chat
+  3. search        SupplierService.search, strict to one province (below)
+  4. reply         CHAT_SYSTEM_PROMPT (cached) + grounding block listing EXACTLY
+                   the suppliers found (prompts.ts)
+  5. persistTurn   user message + replies (+ cards as providers_json) in one
+                   transaction — skipped when the client hung up ("Stop")
+```
+
+Intents: `service_request` (search + cards), `network_inquiry` ("¿tienen
+electricistas en Cartago?" — search, text answer, no cards), `chat`
+(questions about cards already shown — no search). Several services in one
+message → one search + reply each. A place typed in the message beats the zone
+picked in the UI, which beats the device position. Tests:
+`src/api/assistant/chat-turn.service.spec.ts`.
+
+**Stop button:** the frontend aborts the HTTP request; `ChatTurnResolver`
+notices the closed connection and the turn is not saved, so there is nothing
+to roll back.
+
+`searchSuppliers` is also exposed publicly (same search) for other UIs.
 
 `SupplierService.search` (`src/api/supplier/supplier.service.ts`):
 
@@ -98,7 +117,7 @@ Claude (ANTHROPIC_MODEL, default claude-haiku-4-5)  ─ 2 attempts, 30 s timeout
 A provider whose key is unset is skipped. The answering provider is stored on
 `ai_message.model` and logged to `ai_usage_log`. The stable part of the system
 prompt is sent as `cachedSystem` (Anthropic prompt caching); the per-turn
-grounding as `system` (max 12 000 chars — validated).
+grounding as `system` (capped at 11 500 chars).
 
 ### 3. Contacts = customer↔supplier interactions
 
@@ -124,8 +143,7 @@ recomputed in the same transaction. `supplierReviews` returns a hand-built
 
 `mySupplier`, `updateMySupplier`, `setMySupplierCategories` (1–5),
 `setMySupplierSkills`, `suggestMySupplierSkills` (AI draft), `saveMyService`,
-`deleteMyService`, `deleteMySupplierMedia`, `reorderMySupplierMedia`, plus
-`POST /files/upload` (`ownerType=supplier`). The supplier is always taken from
+`deleteMyService`. No photos (removed on purpose). The supplier is always taken from
 the token (`SupplierService.supplierIdForUser`) — there is no supplierId
 argument anyone could forge. Profile changes re-embed the supplier and, while
 the skill list is empty, let the AI draft skills (fire-and-forget).
@@ -152,22 +170,20 @@ Create an admin with `npm run prisma:seed:admin` (env `ADMIN_EMAIL`,
 
 | Surface | Rule |
 |---|---|
-| Public | `supplier`, `suppliers`, `searchSuppliers`, `categories`, `provinces`, `resolveProvince`, `supplierReviews`, `aiComplete`, AI chat (guest by deviceId), `logSupplierContact`, auth mutations |
-| JWT | everything named `my…` / `…Me`, reviews, saved contacts, uploads |
+| Public | `supplier`, `suppliers`, `searchSuppliers`, `categories`, `provinces`, `resolveProvince`, `supplierReviews`, `chatTurn` and AI chat history (guest by deviceId), `logSupplierContact`, auth mutations |
+| JWT | everything named `my…` / `…Me`, reviews, saved contacts |
 | JWT + admin | everything named `admin…` |
 
 - Owner checks always come from the token, never from input ids.
 - `ValidationPipe` is global (registered before `listen`) so `class-validator`
-  limits are enforced (e.g. chat `system` ≤ 12 000, `cachedSystem` ≤ 16 000).
-- Throttling: 100 req/min/IP globally; `aiComplete` 20/min; login 5/min;
+  limits are enforced (e.g. `chatTurn.message` ≤ 2 000 chars).
+- Throttling: 100 req/min/IP globally; `chatTurn` 20/min; login 5/min;
   signup 3/min; `logSupplierContact` 30/min; `searchSuppliers` 60/min.
 - The `Supplier` GraphQL type never exposes the owning user (email/phone);
   admins see the owner email through `adminSuppliers` only.
 
-**Known risk (follow-up):** prompts are built on the frontend and sent through
-`aiComplete` / `sendAiMessage`, so anyone can use those endpoints as a
-rate-limited LLM proxy. Moving the parser and chat prompts server-side (a
-single `chatTurn` mutation) would close it.
+- No endpoint accepts a prompt from the client: `chatTurn` takes only the
+  user message, and every reply is grounded on DB data.
 
 ## Geography (`src/shared/geo`)
 

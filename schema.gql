@@ -27,14 +27,6 @@ type SupplierCategory {
   category: Category
 }
 
-type MediaAsset {
-  mediaAssetId: Int!
-  url: String!
-  altText: String
-  displayOrder: Int!
-  mimeType: String
-}
-
 type Supplier {
   supplierId: Int!
   companyName: String!
@@ -61,7 +53,6 @@ type Supplier {
   createdAt: DateTime
   services: [Service!]
   categories: [SupplierCategory!]
-  media: [MediaAsset!]
   verified: Boolean!
   preferred: Boolean!
   provinceName: String
@@ -159,26 +150,6 @@ type AiConversation {
   createdAt: DateTime!
   updatedAt: DateTime!
   messages: [AiMessage!]
-}
-
-type AiMessageUsage {
-  inputTokens: Float
-  outputTokens: Float
-}
-
-type SendAiMessageResult {
-  messageId: String!
-  role: String!
-  content: String!
-  model: String!
-  usage: AiMessageUsage
-  createdAt: DateTime!
-}
-
-type AiCompletionResult {
-  content: String!
-  model: String!
-  usage: AiMessageUsage
 }
 
 type AdminTotals {
@@ -288,6 +259,22 @@ type SavedContact {
   myRating: Int
 }
 
+type ChatTurnReplyModel {
+  messageId: String!
+  content: String!
+  model: String!
+  createdAt: DateTime!
+  providersJson: String
+  service: String
+  zoneName: String
+}
+
+type ChatTurnResult {
+  conversationId: String!
+  title: String!
+  replies: [ChatTurnReplyModel!]!
+}
+
 type LoginOutput {
   access_token: String!
   expiresAt: DateTime!
@@ -362,16 +349,8 @@ type Mutation {
   updateMySupplier(data: SupplierUpdateInput!): Supplier!
   setMySupplierCategories(data: SupplierCategoriesInput!): Boolean!
   setMySupplierSkills(skills: [String!]!): [String!]!
-  deleteMySupplierMedia(mediaAssetId: Int!): Boolean!
-  reorderMySupplierMedia(mediaAssetIds: [Int!]!): Boolean!
-  aiComplete(data: AiCompletionInput!): AiCompletionResult!
-  createAiConversation(data: AiConversationCreateInput!): AiConversation!
-  updateAiConversation(data: AiConversationUpdateInput!, deviceId: String): AiConversation!
   deleteAiConversation(conversationId: String!, deviceId: String): Boolean!
-  sendAiMessage(data: AiMessageSendInput!, deviceId: String): SendAiMessageResult!
-  updateAiMessageProviders(data: AiMessageProvidersUpdateInput!, deviceId: String): AiMessage!
-  rollbackLastAiTurn(conversationId: String!, deviceId: String): Float!
-  mergeGuestAiConversations(deviceId: String!): Float!
+  mergeGuestAiConversations(deviceId: String!): Int!
   adminSetSupplierVerified(supplierId: Int!, verified: Boolean!): Boolean!
   adminSetSupplierPreferred(data: AdminPreferredInput!): Boolean!
   saveReview(data: ReviewInput!): ReviewView!
@@ -381,6 +360,7 @@ type Mutation {
   logSupplierContact(data: ContactLogInput!): Boolean!
   mergeGuestContacts(deviceId: String!): Int!
   dismissReviewPrompt(supplierId: Int!): Boolean!
+  chatTurn(data: ChatTurnInput!): ChatTurnResult!
 }
 
 input UserUpdateInput {
@@ -445,40 +425,6 @@ input SupplierCategoriesInput {
   primaryCategoryId: Int
 }
 
-input AiCompletionInput {
-  messages: [AiChatMessageInput!]!
-  system: String
-  cachedSystem: String
-}
-
-input AiChatMessageInput {
-  role: String!
-  content: String!
-}
-
-input AiConversationCreateInput {
-  title: String!
-  deviceId: String
-}
-
-input AiConversationUpdateInput {
-  conversationId: String!
-  title: String
-}
-
-input AiMessageSendInput {
-  conversationId: String!
-  content: String!
-  system: String
-  cachedSystem: String
-}
-
-input AiMessageProvidersUpdateInput {
-  conversationId: String!
-  messageId: String!
-  providersJson: String!
-}
-
 input AdminPreferredInput {
   supplierId: Int!
   preferred: Boolean!
@@ -514,4 +460,13 @@ enum ContactChannel {
   EMAIL
   WHATSAPP
   WEBSITE
+}
+
+input ChatTurnInput {
+  conversationId: String
+  message: String!
+  deviceId: String
+  province: String
+  lat: Float
+  lng: Float
 }
