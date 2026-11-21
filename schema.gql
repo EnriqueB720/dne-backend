@@ -145,6 +145,8 @@ type SupplierDashboardStats {
   currency: String!
   platformFeeRate: Float!
   weeklyLeadCounts: [Int!]!
+  leadsThisMonth: Int!
+  leadsAllTime: Int!
 }
 
 type User {
@@ -189,6 +191,29 @@ type PlanSubscription {
 
 type Search {
   post: [Post!]
+}
+
+type LeadEvent {
+  leadEventId: Int!
+  supplierId: Int!
+  customerId: Int
+  source: LeadSource!
+  createdAt: DateTime!
+}
+
+"""
+Where a contact-reveal lead was captured — the AI chat or a supplier storefront.
+"""
+enum LeadSource {
+  CHAT
+  STOREFRONT
+}
+
+type TopSupplierByLeadsRow {
+  supplierId: Int!
+  companyName: String!
+  city: String
+  leadCount: Int!
 }
 
 type AiMessage {
@@ -529,6 +554,8 @@ type AdminStats {
   mtdRevenue: String!
   allTimeRevenue: String!
   currency: String!
+  totalLeads: Int!
+  leadsThisMonth: Int!
 }
 
 type TopSupplierRow {
@@ -613,6 +640,7 @@ type Query {
   customer(where: CustomerWhereInput!): Customer!
   adminStats(adminUserId: Int!): AdminStats!
   topSuppliers(adminUserId: Int!, limit: Int = 10): [TopSupplierRow!]!
+  topSuppliersByLeads(adminUserId: Int!, limit: Int = 10): [TopSupplierByLeadsRow!]!
   aiUsageBreakdown(adminUserId: Int!, daysBack: Int = 30): [AiUsageBreakdownRow!]!
   revenueByDay(adminUserId: Int!, daysBack: Int = 30): [RevenueByDayRow!]!
   servicesBySupplier(supplierId: Int!, includeInactive: Boolean): [Service!]!
@@ -703,6 +731,7 @@ type Mutation {
   setSupplierCategories(data: SupplierCategoriesInput!): Boolean!
   deleteSupplierMedia(data: SupplierMediaDeleteInput!): Boolean!
   reorderSupplierMedia(data: SupplierMediaReorderInput!): Boolean!
+  recordLeadEvent(data: LeadEventCreateInput!): LeadEvent!
   createCategory(data: CategoryCreateInput!): Category!
   createPricing(data: PricingCreateInput!): Pricing!
   createSubscription(data: SubscriptionCreateInput!): PlanSubscription!
@@ -858,6 +887,12 @@ input SupplierMediaDeleteInput {
 input SupplierMediaReorderInput {
   supplierId: Int!
   mediaAssetIds: [Int!]!
+}
+
+input LeadEventCreateInput {
+  supplierId: Int!
+  customerId: Int
+  source: LeadSource = CHAT
 }
 
 input CategoryCreateInput {

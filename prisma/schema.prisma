@@ -120,6 +120,7 @@ model Customer {
   conversations  Conversation[]
   favorites      Favorite[]
   reviewsWritten Review[]       @relation("CustomerReviews")
+  leadEvents     LeadEvent[]
 
   @@map("customer")
 }
@@ -271,6 +272,7 @@ model Supplier {
   verifications   Verification[]
   favoritedBy     Favorite[]
   scrapeSources   ScrapeSource[]
+  leadEvents      LeadEvent[]
 
   @@index([city])
   @@index([rating])
@@ -963,6 +965,31 @@ model ScrapeSource {
 }
 
 // =====================================================================
+// LEAD TRACKING
+// =====================================================================
+
+/**
+ * One row per time a customer reveals/opens a supplier's contact info —
+ * the "Contact" action on a provider card or chat reveal, or a contact
+ * link click on the supplier's storefront. This is the unit of value
+ * Solvo now sells suppliers under the lead-gen model: a lead is a
+ * customer who got far enough to see how to reach them directly.
+ */
+model LeadEvent {
+  leadEventId Int      @id @default(autoincrement()) @map("lead_event_id")
+  supplierId  Int      @map("supplier_id")
+  supplier    Supplier @relation(fields: [supplierId], references: [supplierId])
+  customerId  Int?     @map("customer_id")
+  customer    Customer? @relation(fields: [customerId], references: [customerId])
+  source      LeadSource @default(CHAT) @map("source")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([supplierId, createdAt])
+  @@index([createdAt])
+  @@map("lead_event")
+}
+
+// =====================================================================
 // AI / SEARCH
 // =====================================================================
 
@@ -1029,6 +1056,11 @@ enum SupplierSource {
 enum PromotionTier {
   NONE
   FEATURED
+}
+
+enum LeadSource {
+  CHAT
+  STOREFRONT
 }
 
 enum PricingModel {

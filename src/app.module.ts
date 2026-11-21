@@ -9,7 +9,7 @@ import { GoogleDriveModule } from './shared/google-drive/google-drive.module';
 import { PubSubModule } from './shared/pubsub/pubsub.module';
 import { JwtModule } from '@nestjs/jwt';
 import { GqlThrottlerGuard } from './shared/throttler/gql-throttler.guard';
-import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule, ChatModule, RequestModule, QuoteModule, BookingModule, CalendarEventModule, ConversationModule, NotificationModule, FavoriteModule, CustomerModule, AdminModule, EmbeddingModule, ReviewModule, ServiceModule } from '@apis';
+import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule, ChatModule, RequestModule, QuoteModule, BookingModule, CalendarEventModule, ConversationModule, NotificationModule, FavoriteModule, CustomerModule, AdminModule, EmbeddingModule, ReviewModule, ServiceModule, LeadModule } from '@apis';
 import { AuthModule } from './shared/auth/auth.module';
 import { HealthModule } from './shared/health/health.module';
 import { EmailModule } from './shared/email/email.module';
@@ -86,6 +86,7 @@ const isProd = process.env.NODE_ENV === 'production';
     CustomerModule,
     AdminModule,
     EmbeddingModule,
+    LeadModule,
     ReviewModule,
     ServiceModule,
     HealthModule,

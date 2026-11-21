@@ -40,4 +40,12 @@ export class SupplierDashboardStats {
   /** Lead counts per day for the last 7 days, oldest → newest (Mon..Sun-ish). */
   @Field(() => [Int])
   weeklyLeadCounts: number[];
+
+  /** Contact-reveal leads (LeadEvent) captured this calendar month. */
+  @Field(() => Int)
+  leadsThisMonth: number;
+
+  /** Contact-reveal leads (LeadEvent) captured all time. */
+  @Field(() => Int)
+  leadsAllTime: number;
 }

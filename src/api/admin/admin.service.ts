@@ -2,6 +2,8 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { BookingStatus, PromotionTier, Role } from '@prisma/client';
 
 import { PrismaService } from '@prisma-datasource';
+import { LeadService } from '../lead/lead.service';
+import { TopSupplierByLeadsRow } from '../lead/model';
 import {
   AdminStats,
   AiUsageBreakdownRow,
@@ -13,7 +15,10 @@ import { SetSupplierPromotionInput } from './dto';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly leadService: LeadService,
+  ) {}
 
   /**
    * Demo-grade auth check until the auth track lands resolver-level guards.
@@ -39,7 +44,7 @@ export class AdminService {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [totalUsers, totalCustomers, totalSuppliers, totalBookings, mtd, allTime] =
+    const [totalUsers, totalCustomers, totalSuppliers, totalBookings, mtd, allTime, leadTotals] =
       await Promise.all([
         this.prismaService.user.count({ where: { deletedAt: null } }),
         this.prismaService.customer.count(),
@@ -58,6 +63,7 @@ export class AdminService {
             status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
           },
         }),
+        this.leadService.getLeadTotals(),
       ]);
 
     return {
@@ -68,7 +74,17 @@ export class AdminService {
       mtdRevenue: (mtd._sum.platformFee ?? 0).toString(),
       allTimeRevenue: (allTime._sum.platformFee ?? 0).toString(),
       currency: 'CRC',
+      totalLeads: leadTotals.totalLeads,
+      leadsThisMonth: leadTotals.leadsThisMonth,
     };
+  }
+
+  public async getTopSuppliersByLeads(
+    adminUserId: number,
+    limit = 10,
+  ): Promise<TopSupplierByLeadsRow[]> {
+    await this.assertAdmin(adminUserId);
+    return await this.leadService.getTopSuppliersByLeads(limit);
   }
 
   public async getTopSuppliers(

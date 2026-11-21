@@ -19,6 +19,7 @@ import {
 import { Supplier, SupplierDashboardStats, SupplierSelect } from './model';
 import { PostService } from '../post/post.service';
 import { EmbeddingService } from '../embedding/embedding.service';
+import { LeadService } from '../lead/lead.service';
 import { GoogleDriveService } from '../../shared/google-drive/google-drive.service';
 import { buildSupplierEmbeddingText } from './supplier-embedding.text';
 
@@ -43,6 +44,7 @@ export class SupplierService {
     private readonly prismaService: PrismaService,
     private readonly postService: PostService,
     private readonly embeddingService: EmbeddingService,
+    private readonly leadService: LeadService,
     private readonly googleDriveService: GoogleDriveService,
   ) {}
 
@@ -658,6 +660,8 @@ export class SupplierService {
         currency: 'CRC',
         platformFeeRate: 0.1,
         weeklyLeadCounts: [0, 0, 0, 0, 0, 0, 0],
+        leadsThisMonth: 0,
+        leadsAllTime: 0,
       };
     }
 
@@ -678,6 +682,7 @@ export class SupplierService {
       activeLeadsCount,
       paidBookings,
       weeklyLeadRows,
+      leadStats,
     ] = await Promise.all([
       this.prismaService.request.count({
         where: { ...matchWhere, createdAt: { gte: thirtyDaysAgo } },
@@ -723,6 +728,7 @@ export class SupplierService {
         },
         select: { createdAt: true },
       }),
+      this.leadService.getLeadStatsForSupplier(supplierId),
     ]);
 
     // Response rate
@@ -771,6 +777,8 @@ export class SupplierService {
       // changes, change this too (one place to look for the displayed %).
       platformFeeRate: 0.1,
       weeklyLeadCounts,
+      leadsThisMonth: leadStats.leadsThisMonth,
+      leadsAllTime: leadStats.leadsAllTime,
     };
   }
 

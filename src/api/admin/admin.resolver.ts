@@ -1,5 +1,6 @@
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 
+import { TopSupplierByLeadsRow } from '../lead/model';
 import { AdminService } from './admin.service';
 import {
   AdminStats,
@@ -14,6 +15,7 @@ import {
   RevenueByDayArgs,
   SetSupplierPromotionInput,
   TopSuppliersArgs,
+  TopSuppliersByLeadsArgs,
 } from './dto';
 
 /**
@@ -37,6 +39,13 @@ export class AdminResolver {
     @Args() args: TopSuppliersArgs,
   ): Promise<TopSupplierRow[]> {
     return await this.adminService.getTopSuppliers(args.adminUserId, args.limit);
+  }
+
+  @Query(() => [TopSupplierByLeadsRow])
+  public async topSuppliersByLeads(
+    @Args() args: TopSuppliersByLeadsArgs,
+  ): Promise<TopSupplierByLeadsRow[]> {
+    return await this.adminService.getTopSuppliersByLeads(args.adminUserId, args.limit);
   }
 
   @Query(() => [AiUsageBreakdownRow])

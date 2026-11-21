@@ -28,4 +28,12 @@ export class AdminStats {
 
   @Field()
   currency: string;
+
+  /** Total contact-reveal leads (LeadEvent) generated, all time. */
+  @Field(() => Int)
+  totalLeads: number;
+
+  /** Contact-reveal leads (LeadEvent) generated this calendar month. */
+  @Field(() => Int)
+  leadsThisMonth: number;
 }
