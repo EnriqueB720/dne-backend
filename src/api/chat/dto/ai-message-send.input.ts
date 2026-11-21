@@ -15,7 +15,7 @@ export class AiMessageSendInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  @MaxLength(4000)
+  @MaxLength(12000)
   system?: string;
 
   /**
@@ -25,6 +25,6 @@ export class AiMessageSendInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  @MaxLength(8000)
+  @MaxLength(16000)
   cachedSystem?: string;
 }

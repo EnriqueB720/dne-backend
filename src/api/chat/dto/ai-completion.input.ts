@@ -42,13 +42,13 @@ export class AiCompletionInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  @MaxLength(4000)
+  @MaxLength(12000)
   system?: string;
 
   /** Stable system-prompt prefix eligible for provider-side prompt caching. */
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  @MaxLength(8000)
+  @MaxLength(16000)
   cachedSystem?: string;
 }
