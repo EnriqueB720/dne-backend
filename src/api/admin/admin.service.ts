@@ -7,6 +7,7 @@ import { TopSupplierByLeadsRow } from '../lead/model';
 import {
   AdminStats,
   AiUsageBreakdownRow,
+  MrrByDayRow,
   RevenueByDayRow,
   SupplierPromotionResult,
   TopSupplierRow,
@@ -38,33 +39,89 @@ export class AdminService {
     }
   }
 
+  /**
+   * Active (ACTIVE/TRIALING) paid-plan subscriptions, one row per supplier
+   * they cover, with the plan's monthly price. Shared by `getStats`'
+   * mrr/paidSupplierCount and `getMrrByDay`.
+   */
+  private async getActivePaidSupplierSubscriptions(): Promise<
+    Array<{ price: number; startDate: Date; endDate: Date }>
+  > {
+    const suppliers = await this.prismaService.supplier.findMany({
+      where: {
+        deletedAt: null,
+        subscription: {
+          status: { in: ['ACTIVE', 'TRIALING'] },
+          plan: { price: { gt: 0 } },
+        },
+      },
+      select: {
+        subscription: {
+          select: {
+            startDate: true,
+            endDate: true,
+            plan: { select: { price: true, priceMonthly: true } },
+          },
+        },
+      },
+    });
+
+    return suppliers
+      .filter((s) => !!s.subscription)
+      .map((s) => ({
+        price: Number(s.subscription!.plan.priceMonthly ?? s.subscription!.plan.price),
+        startDate: s.subscription!.startDate,
+        endDate: s.subscription!.endDate,
+      }));
+  }
+
   public async getStats(adminUserId: number): Promise<AdminStats> {
     await this.assertAdmin(adminUserId);
 
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [totalUsers, totalCustomers, totalSuppliers, totalBookings, mtd, allTime, leadTotals] =
-      await Promise.all([
-        this.prismaService.user.count({ where: { deletedAt: null } }),
-        this.prismaService.customer.count(),
-        this.prismaService.supplier.count({ where: { deletedAt: null } }),
-        this.prismaService.booking.count(),
-        this.prismaService.booking.aggregate({
-          _sum: { platformFee: true },
-          where: {
-            createdAt: { gte: monthStart },
-            status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
-          },
-        }),
-        this.prismaService.booking.aggregate({
-          _sum: { platformFee: true },
-          where: {
-            status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
-          },
-        }),
-        this.leadService.getLeadTotals(),
-      ]);
+    const [
+      totalUsers,
+      totalCustomers,
+      totalSuppliers,
+      totalBookings,
+      mtd,
+      allTime,
+      leadTotals,
+      paidSubscriptions,
+      subscribedSupplierCount,
+    ] = await Promise.all([
+      this.prismaService.user.count({ where: { deletedAt: null } }),
+      this.prismaService.customer.count(),
+      this.prismaService.supplier.count({ where: { deletedAt: null } }),
+      this.prismaService.booking.count(),
+      this.prismaService.booking.aggregate({
+        _sum: { platformFee: true },
+        where: {
+          createdAt: { gte: monthStart },
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
+        },
+      }),
+      this.prismaService.booking.aggregate({
+        _sum: { platformFee: true },
+        where: {
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
+        },
+      }),
+      this.leadService.getLeadTotals(),
+      this.getActivePaidSupplierSubscriptions(),
+      this.prismaService.supplier.count({
+        where: { deletedAt: null, subscriptionId: { not: null } },
+      }),
+    ]);
+
+    const mrr = paidSubscriptions.reduce((sum, s) => sum + s.price, 0);
+    const paidSupplierCount = paidSubscriptions.length;
+    const freeToPaidConversionRate =
+      subscribedSupplierCount > 0
+        ? Math.round((paidSupplierCount / subscribedSupplierCount) * 1000) / 10
+        : 0;
 
     return {
       totalUsers,
@@ -76,7 +133,49 @@ export class AdminService {
       currency: 'CRC',
       totalLeads: leadTotals.totalLeads,
       leadsThisMonth: leadTotals.leadsThisMonth,
+      mrr: mrr.toFixed(2),
+      paidSupplierCount,
+      freeToPaidConversionRate,
     };
+  }
+
+  public async getMrrByDay(adminUserId: number, daysBack = 30): Promise<MrrByDayRow[]> {
+    await this.assertAdmin(adminUserId);
+
+    const windowDays = Math.min(Math.max(daysBack, 1), 365);
+    const now = new Date();
+    const startUtc = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - (windowDays - 1),
+      ),
+    );
+
+    const subscriptions = await this.getActivePaidSupplierSubscriptions();
+
+    const buckets = new Map<string, { mrr: number; count: number }>();
+    for (let i = 0; i < windowDays; i++) {
+      const d = new Date(startUtc);
+      d.setUTCDate(startUtc.getUTCDate() + i);
+      buckets.set(d.toISOString().slice(0, 10), { mrr: 0, count: 0 });
+    }
+
+    for (const [day, cell] of buckets) {
+      const dayDate = new Date(`${day}T00:00:00.000Z`);
+      for (const s of subscriptions) {
+        if (s.startDate <= dayDate && s.endDate >= dayDate) {
+          cell.mrr += s.price;
+          cell.count += 1;
+        }
+      }
+    }
+
+    return Array.from(buckets.entries()).map(([day, v]) => ({
+      day,
+      mrr: v.mrr.toFixed(2),
+      paidSupplierCount: v.count,
+    }));
   }
 
   public async getTopSuppliersByLeads(

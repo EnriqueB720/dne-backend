@@ -556,6 +556,9 @@ type AdminStats {
   currency: String!
   totalLeads: Int!
   leadsThisMonth: Int!
+  mrr: String!
+  paidSupplierCount: Int!
+  freeToPaidConversionRate: Float!
 }
 
 type TopSupplierRow {
@@ -587,6 +590,12 @@ type RevenueByDayRow {
   day: String!
   platformFee: String!
   bookings: Int!
+}
+
+type MrrByDayRow {
+  day: String!
+  mrr: String!
+  paidSupplierCount: Int!
 }
 
 type LoginOutput {
@@ -643,6 +652,7 @@ type Query {
   topSuppliersByLeads(adminUserId: Int!, limit: Int = 10): [TopSupplierByLeadsRow!]!
   aiUsageBreakdown(adminUserId: Int!, daysBack: Int = 30): [AiUsageBreakdownRow!]!
   revenueByDay(adminUserId: Int!, daysBack: Int = 30): [RevenueByDayRow!]!
+  mrrByDay(adminUserId: Int!, daysBack: Int = 30): [MrrByDayRow!]!
   servicesBySupplier(supplierId: Int!, includeInactive: Boolean): [Service!]!
 }
 

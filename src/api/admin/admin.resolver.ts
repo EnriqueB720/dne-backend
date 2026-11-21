@@ -5,6 +5,7 @@ import { AdminService } from './admin.service';
 import {
   AdminStats,
   AiUsageBreakdownRow,
+  MrrByDayRow,
   RevenueByDayRow,
   SupplierPromotionResult,
   TopSupplierRow,
@@ -12,6 +13,7 @@ import {
 import {
   AdminStatsArgs,
   AiUsageBreakdownArgs,
+  MrrByDayArgs,
   RevenueByDayArgs,
   SetSupplierPromotionInput,
   TopSuppliersArgs,
@@ -63,6 +65,11 @@ export class AdminResolver {
     @Args() args: RevenueByDayArgs,
   ): Promise<RevenueByDayRow[]> {
     return await this.adminService.getRevenueByDay(args.adminUserId, args.daysBack);
+  }
+
+  @Query(() => [MrrByDayRow])
+  public async mrrByDay(@Args() args: MrrByDayArgs): Promise<MrrByDayRow[]> {
+    return await this.adminService.getMrrByDay(args.adminUserId, args.daysBack);
   }
 
   @Mutation(() => SupplierPromotionResult)
