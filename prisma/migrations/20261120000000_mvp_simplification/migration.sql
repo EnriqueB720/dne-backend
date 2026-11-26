@@ -17,6 +17,10 @@
 -- proposes dropping it — never accept that.
 -- =====================================================================
 
+-- All-or-nothing: a failure anywhere rolls the whole migration back instead
+-- of leaving production half-migrated (Postgres DDL is transactional).
+BEGIN;
+
 -- ── 0. Lookup: normalized place name → province (from src/shared/geo) ──
 CREATE TEMP TABLE _geo_place (key TEXT PRIMARY KEY, province TEXT NOT NULL);
 INSERT INTO _geo_place (key, province) VALUES
@@ -427,3 +431,5 @@ INSERT INTO "category" ("slug", "name_es", "name_en", "icon", "display_order", "
 ON CONFLICT ("slug") DO NOTHING;
 
 DROP TABLE _geo_place;
+
+COMMIT;
