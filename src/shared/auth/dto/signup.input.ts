@@ -8,7 +8,7 @@ export class SignUpInput {
   @Field()
   email: string;
 
-  @MinLength(4)
+  @MinLength(2)
   @MaxLength(100)
   @Field()
   name: string;

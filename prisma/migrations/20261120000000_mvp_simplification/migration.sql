@@ -175,13 +175,23 @@ CREATE FUNCTION pg_temp._norm_place(v TEXT) RETURNS TEXT AS $$
     '[^a-z0-9\s]', ' ', 'g'), '\s+', ' ', 'g'));
 $$ LANGUAGE SQL IMMUTABLE;
 
--- Exact name first, otherwise the longest known place contained in the text.
+-- Same order as GeoService.fromText: exact name; else the LAST province
+-- named in the text ("San Rafael de Alajuela" -> Alajuela, not the Heredia
+-- district); else the longest known place contained in the text.
 CREATE FUNCTION pg_temp._province_of(v TEXT) RETURNS TEXT AS $$
+  WITH t AS (SELECT ' ' || pg_temp._norm_place(v) || ' ' AS hay)
   SELECT coalesce(
     (SELECT province FROM _geo_place WHERE key = pg_temp._norm_place(v)),
-    (SELECT province FROM _geo_place
-      WHERE position(' ' || key || ' ' IN ' ' || pg_temp._norm_place(v) || ' ') > 0
-      ORDER BY length(key) DESC LIMIT 1)
+    (SELECT g.province FROM _geo_place g, t
+      WHERE g.key IN ('san jose', 'sanjose', 'chepe', 'alajuela', 'cartago', 'heredia',
+                      'guanacaste', 'puntarenas', 'limon', 'puerto limon')
+        AND position(' ' || g.key || ' ' IN t.hay) > 0
+      ORDER BY length(t.hay) - strpos(reverse(t.hay), reverse(' ' || g.key || ' '))
+               - length(g.key) DESC
+      LIMIT 1),
+    (SELECT g.province FROM _geo_place g, t
+      WHERE position(' ' || g.key || ' ' IN t.hay) > 0
+      ORDER BY length(g.key) DESC LIMIT 1)
   );
 $$ LANGUAGE SQL STABLE;
 
@@ -306,6 +316,14 @@ ALTER TABLE "category"
   ALTER COLUMN "slug" SET NOT NULL,
   ALTER COLUMN "name_es" SET NOT NULL,
   ALTER COLUMN "name_en" SET NOT NULL;
+
+-- service.currency was unbounded TEXT: any value that isn't a 3-letter code
+-- ('CRC ', 'colones') would make the VARCHAR(3) cast below abort the migration.
+UPDATE "service" SET "currency" = CASE
+    WHEN upper(btrim("currency")) ~ '^[A-Z]{3}$' THEN upper(btrim("currency"))
+    ELSE 'CRC'
+  END
+WHERE "currency" IS NOT NULL AND "currency" !~ '^[A-Z]{3}$';
 
 ALTER TABLE "service"
   DROP COLUMN "category_id", DROP COLUMN "pricing_model", DROP COLUMN "base_price",

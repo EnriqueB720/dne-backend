@@ -27,6 +27,12 @@ import { GeoService } from '../geo/geo.service';
  */
 const TOKEN_LIFETIME_SECONDS = 60 * 60;
 
+/** `user.country` is an ISO alpha-2 column, but some forms send the full name ("Costa Rica"). */
+function toCountryCode(value: string | null | undefined): string {
+  const code = value?.trim().toUpperCase();
+  return code && /^[A-Z]{2}$/.test(code) ? code : 'CR';
+}
+
 const USER_PROFILE_SELECT = {
   userId: true,
   email: true,
@@ -157,7 +163,7 @@ export class AuthService {
       email: input.email,
       name: input.name,
       phone: input.phone,
-      country: input.country,
+      country: toCountryCode(input.country),
       password: passwordHash,
       profilePicture: input.profilePicture,
     };
@@ -430,7 +436,7 @@ const name = (profile.name?.trim() || profile.email.split('@')[0]).slice(0, 100)
 
     const base = {
       phone: input.phone ?? undefined,
-      country: input.country ?? undefined,
+      country: input.country ? toCountryCode(input.country) : undefined,
     };
 
     if (role === 'CUSTOMER') {

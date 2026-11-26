@@ -1,5 +1,8 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsEmail, IsOptional, IsUrl, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsUrl, MaxLength, MinLength, ValidateIf } from 'class-validator';
+
+// A blank value means "clear it" (see updateMine), so only validate a filled-in one.
+const isFilled = (_: object, value: unknown) => value != null && String(value).trim() !== '';
 
 /**
  * The signed-in supplier's own business profile. Omitted = unchanged,
@@ -34,12 +37,12 @@ export class SupplierUpdateInput {
   @Field({ nullable: true })
   businessPhoneAlt?: string;
 
-  @IsOptional()
+  @ValidateIf(isFilled)
   @IsEmail({}, { message: 'businessEmail must be an email' })
   @Field({ nullable: true })
   businessEmail?: string;
 
-  @IsOptional()
+  @ValidateIf(isFilled)
   @IsEmail({}, { message: 'businessEmailAlt must be an email' })
   @Field({ nullable: true })
   businessEmailAlt?: string;
@@ -49,7 +52,7 @@ export class SupplierUpdateInput {
   @Field({ nullable: true })
   whatsappNumber?: string;
 
-  @IsOptional()
+  @ValidateIf(isFilled)
   @IsUrl({ require_protocol: false }, { message: 'websiteUrl must be a URL' })
   @Field({ nullable: true })
   websiteUrl?: string;
