@@ -9,14 +9,18 @@ export interface SupplierEmbeddingSource {
   companyName: string;
   tagline: string | null;
   description: string | null;
+  skills: string[];
   services: { name: string; description: string | null }[];
-  categories: { category: { categoryName: string } }[];
+  categories: { category: { nameEs: string; nameEn: string } }[];
 }
 
 export function buildSupplierEmbeddingText(s: SupplierEmbeddingSource): string {
   const parts: string[] = [s.companyName];
   if (s.tagline) parts.push(s.tagline);
   if (s.description) parts.push(s.description);
+  // Skills are short and specific — exactly what a customer types — so
+  // they go ahead of the longer services block.
+  if (s.skills.length > 0) parts.push('Skills: ' + s.skills.join(', '));
   if (s.services.length > 0) {
     parts.push(
       'Services: ' +
@@ -27,7 +31,7 @@ export function buildSupplierEmbeddingText(s: SupplierEmbeddingSource): string {
   }
   if (s.categories.length > 0) {
     parts.push(
-      'Categories: ' + s.categories.map((c) => c.category.categoryName).join(', '),
+      'Categories: ' + s.categories.map((c) => `${c.category.nameEs} / ${c.category.nameEn}`).join(', '),
     );
   }
   return parts.join('. ');

@@ -23,13 +23,15 @@
     "prisma:deploy": "npx prisma migrate deploy",
     "prisma:studio": "npx prisma studio",
     "prisma:generate": "npx prisma generate",
-    "prisma:seed": "ts-node prisma/seed.ts",
-    "prisma:seed:marketplace": "ts-node prisma/seed-marketplace.ts",
+    "prisma:seed": "ts-node prisma/seed-marketplace.ts",
+    "prisma:seed:admin": "ts-node prisma/seed-admin.ts",
     "prisma:embed": "ts-node -r tsconfig-paths/register src/scripts/backfill-supplier-embeddings.ts",
+    "prisma:skills": "ts-node -r tsconfig-paths/register src/scripts/backfill-supplier-skills.ts",
+    "geo:backfill": "ts-node -r tsconfig-paths/register src/scripts/backfill-supplier-provinces.ts",
     "sync-migrations": "npm run prisma:generate && npm run prisma:save"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed-marketplace.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.94.0",
@@ -42,7 +44,6 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
-    "@nestjs/schedule": "^6.0.0",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.19.0",
     "@prisma/config": "6.19.0",
@@ -53,13 +54,9 @@
     "class-validator": "^0.14.2",
     "dotenv": "^17.2.0",
     "google-auth-library": "^10.7.0",
-    "googleapis": "^171.4.0",
     "graphql": "^16.11.0",
     "graphql-fields": "^2.0.3",
-    "graphql-subscriptions": "^3.0.0",
-    "graphql-ws": "^6.0.8",
     "joi": "^17.13.3",
-    "multer": "^2.1.1",
     "nestjs-pino": "^5.1.0",
     "openai": "^6.36.0",
     "passport-jwt": "^4.0.1",
@@ -81,7 +78,6 @@
     "@swc/core": "^1.10.7",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
-    "@types/multer": "^2.1.0",
     "@types/node": "^22.10.7",
     "@types/supertest": "^6.0.2",
     "eslint": "^9.18.0",
@@ -115,6 +111,12 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@prisma-datasource$": "<rootDir>/shared/datasource/prisma/index",
+      "^@decorators$": "<rootDir>/shared/decorators/index",
+      "^@apis$": "<rootDir>/api/index",
+      "^src/(.*)$": "<rootDir>/$1"
+    }
   }
 }

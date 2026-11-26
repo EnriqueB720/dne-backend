@@ -1,10 +1,21 @@
-import { Field, ObjectType } from '@nestjs/graphql';
+import { Field, Int, ObjectType } from '@nestjs/graphql';
 
 @ObjectType()
 export class Category {
-  @Field()
+  @Field(() => Int)
   categoryId: number;
 
+  /** Stable key ("plumbing", "building-materials"). */
   @Field()
-  categoryName: string;
+  slug: string;
+
+  @Field()
+  nameEs: string;
+
+  @Field()
+  nameEn: string;
+
+  /** Single emoji. */
+  @Field({ nullable: true })
+  icon?: string;
 }

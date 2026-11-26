@@ -1,65 +1,44 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
+import { Args, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
 
+import { AdminGuard, JwtAuthGuard } from '../../shared/auth/guards';
 import { AdminService } from './admin.service';
-import {
-  AdminStats,
-  AiUsageBreakdownRow,
-  RevenueByDayRow,
-  SupplierPromotionResult,
-  TopSupplierRow,
-} from './model';
-import {
-  AdminStatsArgs,
-  AiUsageBreakdownArgs,
-  RevenueByDayArgs,
-  SetSupplierPromotionInput,
-  TopSuppliersArgs,
-} from './dto';
+import { AdminPreferredInput, AdminSupplierFilter } from './dto/admin.input';
+import { AdminOverview, AdminSupplierPage } from './model/admin.model';
 
-/**
- * Admin-only GraphQL surface. Each method passes `adminUserId` through to
- * the service, which verifies the caller is actually an admin before
- * returning anything (see `AdminService.assertAdmin`). When the auth-track
- * lands resolver-level guards, the `adminUserId` arg should be replaced with
- * an extraction from the authenticated GraphQL context.
- */
+/** Admin-only. The caller's token must belong to a user with `is_admin`. */
 @Resolver()
+@UseGuards(JwtAuthGuard, AdminGuard)
 export class AdminResolver {
   constructor(private readonly adminService: AdminService) {}
 
-  @Query(() => AdminStats)
-  public async adminStats(@Args() args: AdminStatsArgs): Promise<AdminStats> {
-    return await this.adminService.getStats(args.adminUserId);
+  /** Dashboard: new suppliers/customers, contacts, provinces, top suppliers. */
+  @Query(() => AdminOverview)
+  adminOverview(
+    @Args('days', { type: () => Int, nullable: true, defaultValue: 30 }) days: number,
+  ): Promise<AdminOverview> {
+    return this.adminService.overview(days);
   }
 
-  @Query(() => [TopSupplierRow])
-  public async topSuppliers(
-    @Args() args: TopSuppliersArgs,
-  ): Promise<TopSupplierRow[]> {
-    return await this.adminService.getTopSuppliers(args.adminUserId, args.limit);
+  /** Supplier table behind the Verification and Preferred pages. */
+  @Query(() => AdminSupplierPage)
+  adminSuppliers(
+    @Args('filter', { nullable: true }) filter: AdminSupplierFilter,
+  ): Promise<AdminSupplierPage> {
+    return this.adminService.suppliers(filter ?? {});
   }
 
-  @Query(() => [AiUsageBreakdownRow])
-  public async aiUsageBreakdown(
-    @Args() args: AiUsageBreakdownArgs,
-  ): Promise<AiUsageBreakdownRow[]> {
-    return await this.adminService.getAiUsageBreakdown(
-      args.adminUserId,
-      args.daysBack,
-    );
+  @Mutation(() => Boolean)
+  adminSetSupplierVerified(
+    @Args('supplierId', { type: () => Int }) supplierId: number,
+    @Args('verified') verified: boolean,
+  ): Promise<boolean> {
+    return this.adminService.setVerified(supplierId, verified);
   }
 
-  @Query(() => [RevenueByDayRow])
-  public async revenueByDay(
-    @Args() args: RevenueByDayArgs,
-  ): Promise<RevenueByDayRow[]> {
-    return await this.adminService.getRevenueByDay(args.adminUserId, args.daysBack);
-  }
-
-  @Mutation(() => SupplierPromotionResult)
-  public async setSupplierPromotion(
-    @Args('data') data: SetSupplierPromotionInput,
-  ): Promise<SupplierPromotionResult> {
-    return await this.adminService.setSupplierPromotion(data);
+  /** Pin a supplier to the top of search results (optionally until a date). */
+  @Mutation(() => Boolean)
+  adminSetSupplierPreferred(@Args('data') data: AdminPreferredInput): Promise<boolean> {
+    return this.adminService.setPreferred(data);
   }
 }

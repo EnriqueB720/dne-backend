@@ -1,21 +1,12 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
 
-/**
- * Replaces a supplier's whole category set in one call — the settings page
- * always submits the complete selection, so anything omitted is removed.
- */
+/** Full replace of the signed-in supplier's categories (1–5). */
 @InputType()
 export class SupplierCategoriesInput {
-  @Field(() => Int)
-  supplierId: number;
-
   @Field(() => [Int])
   categoryIds: number[];
 
-  /**
-   * Which one leads. Ignored when it isn't part of `categoryIds`; the
-   * first entry is used instead so a supplier always has exactly one.
-   */
+  /** Which one leads; falls back to the first id. */
   @Field(() => Int, { nullable: true })
   primaryCategoryId?: number;
 }

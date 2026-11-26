@@ -5,11 +5,10 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { PrismaModule } from './shared/datasource/prisma/prisma.module';
 import { ConfigModule } from 'src/shared/config/config.module';
-import { GoogleDriveModule } from './shared/google-drive/google-drive.module';
-import { PubSubModule } from './shared/pubsub/pubsub.module';
 import { JwtModule } from '@nestjs/jwt';
 import { GqlThrottlerGuard } from './shared/throttler/gql-throttler.guard';
-import { UserModule, SearchModule, SupplierModule, PostModule, CategoryModule, PricingModule, SubscriptionModule, ChatModule, RequestModule, QuoteModule, BookingModule, CalendarEventModule, ConversationModule, NotificationModule, FavoriteModule, CustomerModule, AdminModule, EmbeddingModule, ReviewModule, ServiceModule } from '@apis';
+import { UserModule, SupplierModule, CategoryModule, ChatModule, AdminModule, EmbeddingModule, ReviewModule, ServiceModule, ContactModule, AssistantModule } from '@apis';
+import { GeoModule } from './shared/geo/geo.module';
 import { AuthModule } from './shared/auth/auth.module';
 import { HealthModule } from './shared/health/health.module';
 import { EmailModule } from './shared/email/email.module';
@@ -65,29 +64,18 @@ const isProd = process.env.NODE_ENV === 'production';
     }),
     ConfigModule,
     PrismaModule,
-    PubSubModule,
+    GeoModule,
     UserModule,
-    GoogleDriveModule,
-    SearchModule,
     AuthModule,
     SupplierModule,
-    PostModule,
     CategoryModule,
-    PricingModule,
-    SubscriptionModule,
     ChatModule,
-    RequestModule,
-    QuoteModule,
-    BookingModule,
-    CalendarEventModule,
-    ConversationModule,
-    NotificationModule,
-    FavoriteModule,
-    CustomerModule,
     AdminModule,
     EmbeddingModule,
     ReviewModule,
     ServiceModule,
+    ContactModule,
+    AssistantModule,
     HealthModule,
     EmailModule,
   ],

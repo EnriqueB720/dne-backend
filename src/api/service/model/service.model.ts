@@ -1,52 +1,29 @@
-import { Field, ObjectType, registerEnumType } from '@nestjs/graphql';
-import { PricingModel, Prisma } from '@prisma/client';
+import { Field, Int, ObjectType } from '@nestjs/graphql';
+import { Prisma } from '@prisma/client';
 
+/** A service or product on a supplier's profile, with an optional "from" price. */
 @ObjectType()
 export class Service {
-  @Field()
+  @Field(() => Int)
   serviceId: number;
 
-  @Field()
+  @Field(() => Int)
   supplierId: number;
-
-  @Field()
-  categoryId: number;
 
   @Field()
   name: string;
 
-  @Field()
-  description: string;
+  @Field({ nullable: true })
+  description?: string;
 
-  @Field(() => PricingModel)
-  pricingModel: PricingModel;
+  /** Decimal as string. Null = "ask for a price". */
+  @Field(() => String, { nullable: true })
+  priceFrom?: Prisma.Decimal;
 
-  @Field(() => String)
-  basePrice: Prisma.Decimal;
+  /** Shown after the price: "hora", "m²", "unidad". Null = flat price. */
+  @Field({ nullable: true })
+  priceUnit?: string;
 
   @Field()
   currency: string;
-
-  @Field(() => String, { nullable: true })
-  minTotalPrice?: Prisma.Decimal;
-
-  @Field(() => String, { nullable: true })
-  maxTotalPrice?: Prisma.Decimal;
-
-  @Field({ nullable: true })
-  minUnits?: number;
-
-  @Field({ nullable: true })
-  maxUnits?: number;
-
-  @Field({ nullable: true })
-  unitLabel?: string;
-
-  @Field()
-  active: boolean;
 }
-
-registerEnumType(PricingModel, {
-  name: 'PricingModel',
-  description: 'How a service is priced',
-});

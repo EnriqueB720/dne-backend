@@ -1,8 +1,9 @@
-interface CategoryPrismaSelect {
-  categoryId?: boolean;
-  categoryName?: boolean;
-}
-
 export interface CategorySelect {
-  select?: CategoryPrismaSelect;
+  select?: {
+    categoryId?: boolean;
+    slug?: boolean;
+    nameEs?: boolean;
+    nameEn?: boolean;
+    icon?: boolean;
+  };
 }

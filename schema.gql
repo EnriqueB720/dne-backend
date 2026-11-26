@@ -2,85 +2,22 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-type Pricing {
-  planId: Float!
-  planName: String!
-  price: String!
-  features: String!
+type Service {
+  serviceId: Int!
+  supplierId: Int!
+  name: String!
+  description: String
+  priceFrom: String
+  priceUnit: String
+  currency: String!
 }
 
 type Category {
-  categoryId: Float!
-  categoryName: String!
-}
-
-type Post {
-  postId: Float!
-  supplier: Supplier!
-  category: Category!
-  title: String!
-  description: String!
-  price: String!
-  createdAt: DateTime!
-  media_url: String!
-}
-
-"""
-A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
-"""
-scalar DateTime
-
-type Service {
-  serviceId: Float!
-  supplierId: Float!
-  categoryId: Float!
-  name: String!
-  description: String!
-  pricingModel: PricingModel!
-  basePrice: String!
-  currency: String!
-  minTotalPrice: String
-  maxTotalPrice: String
-  minUnits: Float
-  maxUnits: Float
-  unitLabel: String
-  active: Boolean!
-}
-
-"""How a service is priced"""
-enum PricingModel {
-  FLAT
-  PER_PERSON
-  PER_HOUR
-  PER_DAY
-  CUSTOM
-}
-
-type Customer {
-  customerId: Float!
-  userId: Float!
-  defaultCity: String
-  defaultAddress: String
-  marketingOptIn: Boolean!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  user: User
-}
-
-type Review {
-  reviewId: Int!
-  bookingId: Int!
-  customerId: Int!
-  supplierId: Int!
-  rating: Int!
-  text: String
-  ratingQuality: Int
-  ratingCommunication: Int
-  ratingValue: Int
-  ratingPunctuality: Int
-  supplierResponse: String
-  createdAt: DateTime!
-  customer: Customer
+  categoryId: Int!
+  slug: String!
+  nameEs: String!
+  nameEn: String!
+  icon: String
 }
 
 type SupplierCategory {
@@ -90,77 +27,102 @@ type SupplierCategory {
   category: Category
 }
 
-type MediaAsset {
-  mediaAssetId: Int!
-  url: String!
-  thumbnailUrl: String
-  altText: String
-  caption: String
-  displayOrder: Int!
-  mimeType: String
-}
-
 type Supplier {
-  supplierId: Float!
-  user: User
+  supplierId: Int!
   companyName: String!
-  slug: String
   tagline: String
   description: String
+  skills: [String!]
   businessPhone: String
-  businessEmail: String
   businessPhoneAlt: String
+  businessEmail: String
   businessEmailAlt: String
   whatsappNumber: String
   websiteUrl: String
+  province: String
+  serviceProvinces: [String!]
   city: String
+  address: String
   rating: String
-  reviewCount: Float
-  responseTimeMinutes: Float
-  minCapacity: Float
-  maxCapacity: Float
-  verified: Boolean
-  premium: Boolean
-  promotionTier: PromotionTier!
-  promotionStartDate: DateTime
-  promotionEndDate: DateTime
+  reviewCount: Int
+  verifiedAt: DateTime
+  preferredAt: DateTime
+  preferredUntil: DateTime
+  source: SupplierSource
+  claimedAt: DateTime
+  createdAt: DateTime
   services: [Service!]
-  posts: [Post!]
   categories: [SupplierCategory!]
-  reviewsReceived: [Review!]
-  media: [MediaAsset!]
+  verified: Boolean!
+  preferred: Boolean!
+  provinceName: String
+  serviceProvinceNames: [String!]!
 }
 
-enum PromotionTier {
-  NONE
-  FEATURED
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+"""How the supplier row was created"""
+enum SupplierSource {
+  SELF_SIGNUP
+  GOOGLE_PLACES
+  MANUAL_IMPORT
 }
 
-type SupplierDashboardStats {
-  responseRate: Float!
-  conversionRate: Float!
-  activeLeadsCount: Int!
-  mtdEarnings: String!
-  mtdGross: String!
-  currency: String!
-  platformFeeRate: Float!
-  weeklyLeadCounts: [Int!]!
+"""A province / state (ISO 3166-2)"""
+type Province {
+  code: String!
+  name: String!
+  country: String!
+}
+
+"""A province worked out from text or device coordinates"""
+type ResolvedProvince {
+  code: String!
+  name: String!
+  country: String!
+  source: String!
+}
+
+"""Chat search: who serves the requested zone"""
+type SupplierSearchResult {
+  province: ResolvedProvince
+  suppliers: [Supplier!]!
+}
+
+type ContactChannelCount {
+  channel: String!
+  count: Int!
+}
+
+type SupplierStats {
+  contactsLast30Days: Int!
+  contactsTotal: Int!
+  contactsByChannel: [ContactChannelCount!]!
+  reviewCount: Int!
+  rating: String
+}
+
+type Customer {
+  customerId: Int!
+  userId: Int
 }
 
 type User {
-  userId: Float!
+  userId: Int!
   email: String!
   name: String!
   phone: String
   language: Language!
   country: String!
-  role: Role!
   profilePicture: String
   isCustomer: Boolean
   isSupplier: Boolean
   isAdmin: Boolean
-  subscription: [PlanSubscription!]
-  supplier: [Supplier!]
+  createdAt: DateTime
+  supplier: Supplier
   customer: Customer
 }
 
@@ -170,35 +132,12 @@ enum Language {
   ENGLISH
 }
 
-"""Supported roles for users"""
-enum Role {
-  ADMIN
-  SUPPLIER
-}
-
-type PlanSubscription {
-  subscriptionId: Float!
-  userId: Float!
-  user: User
-  planId: Float!
-  plan: Pricing
-  startDate: DateTime!
-  endDate: DateTime!
-  status: String!
-}
-
-type Search {
-  post: [Post!]
-}
-
 type AiMessage {
   messageId: String!
   conversationId: String!
   role: String!
   content: String!
   model: String
-  inputTokens: Float
-  outputTokens: Float
   providersJson: String
   createdAt: DateTime!
 }
@@ -206,360 +145,134 @@ type AiMessage {
 type AiConversation {
   conversationId: String!
   title: String!
-  model: String!
   deviceId: String!
   userId: Float
-  requestId: Float
   createdAt: DateTime!
   updatedAt: DateTime!
   messages: [AiMessage!]
 }
 
-type AiMessageUsage {
-  inputTokens: Float
-  outputTokens: Float
+type AdminTotals {
+  suppliers: Int!
+  verifiedSuppliers: Int!
+  pendingVerification: Int!
+  preferredSuppliers: Int!
+  customers: Int!
+  newSuppliers: Int!
+  newCustomers: Int!
+  contacts: Int!
+  uniqueContacters: Int!
+  chats: Int!
 }
 
-type SendAiMessageResult {
-  messageId: String!
-  role: String!
-  content: String!
-  model: String!
-  usage: AiMessageUsage
-  createdAt: DateTime!
+type AdminDailyRow {
+  day: String!
+  newSuppliers: Int!
+  newCustomers: Int!
+  contacts: Int!
 }
 
-type AiCompletionResult {
-  content: String!
-  model: String!
-  usage: AiMessageUsage
+type AdminCount {
+  key: String!
+  label: String!
+  count: Int!
 }
 
-type Notification {
-  notificationId: Int!
-  userId: Int!
-  channel: NotificationChannel!
-  template: String!
-  subject: String
-  body: String!
-  entityType: String
-  entityId: Int
-  status: NotificationStatus!
-  readAt: DateTime
-  createdAt: DateTime!
-}
-
-"""How a notification is delivered (in-app, email, etc.)"""
-enum NotificationChannel {
-  WHATSAPP
-  EMAIL
-  PUSH
-  IN_APP
-  SMS
-}
-
-"""Delivery lifecycle status of a notification"""
-enum NotificationStatus {
-  QUEUED
-  SENT
-  DELIVERED
-  READ
-  FAILED
-}
-
-type QuoteItem {
-  quoteItemId: Float!
-  quoteId: Float!
-  serviceId: Float
-  description: String!
-  quantity: String!
-  unitPrice: String!
-  total: String!
-}
-
-type QuoteSlot {
-  startsAt: DateTime!
-  endsAt: DateTime!
-}
-
-type Quote {
-  quoteId: Float!
-  requestId: Float!
-  supplierId: Float!
-  totalPrice: String!
-  currency: String!
-  message: String
-  validUntil: DateTime!
-  status: QuoteStatus!
-  viewedAt: DateTime
-  respondedAt: DateTime
-  offeredSlots: [QuoteSlot!]
-  selectedSlotIndex: Int
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  items: [QuoteItem!]
-  supplier: Supplier
-  request: Request
-}
-
-"""Lifecycle status of a supplier quote"""
-enum QuoteStatus {
-  SENT
-  VIEWED
-  ACCEPTED
-  REJECTED
-  EXPIRED
-  WITHDRAWN
-}
-
-type QuoteEvent {
-  eventType: String!
-  quoteId: Int!
-  requestId: Int!
-}
-
-type Request {
-  requestId: Float!
-  customerId: Float!
-  categoryId: Float
-  category: Category
-  rawQuery: String!
-  conversationTurns: Float!
-  isComplete: Boolean!
-  city: String
-  serviceDate: DateTime
-  guestCount: Float
-  budgetMin: String
-  budgetMax: String
-  status: RequestStatus!
-  expiresAt: DateTime
-  closedAt: DateTime
-  closedReason: String
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  quotes: [Quote!]
-  customer: Customer
-}
-
-"""Lifecycle status of a customer service request"""
-enum RequestStatus {
-  GATHERING
-  MATCHING
-  AWAITING_QUOTES
-  QUOTES_RECEIVED
-  BOOKED
-  CLOSED
-}
-
-type RequestEvent {
-  eventType: String!
-  requestId: Int!
-}
-
-type Booking {
-  bookingId: Float!
-  requestId: Float!
-  quoteId: Float!
-  customerId: Float!
-  supplierId: Float!
-  serviceDate: DateTime!
-  serviceEndDate: DateTime
-  location: String!
-  guestCount: Float
-  totalPrice: String!
-  platformFee: String!
-  supplierPayout: String!
-  currency: String!
-  status: BookingStatus!
-  paymentStatus: PaymentStatus!
-  phoneRevealedAt: DateTime
-  cancellationReason: String
-  cancelledAt: DateTime
-  cancelledBy: String
-  completedAt: DateTime
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  supplier: Supplier
-  customer: Customer
-  request: Request
-  quote: Quote
-  review: Review
-}
-
-"""Lifecycle status of a booking"""
-enum BookingStatus {
-  CONFIRMED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  DISPUTED
-}
-
-"""Payment lifecycle on a booking"""
-enum PaymentStatus {
-  PENDING
-  DEPOSIT_PAID
-  FULLY_PAID
-  REFUNDED
-  PARTIALLY_REFUNDED
-  FAILED
-}
-
-type BookingEvent {
-  eventType: String!
-  bookingId: Int!
-}
-
-type CalendarEvent {
-  calendarEventId: Float!
-  supplierId: Float!
-  eventType: EventType!
-  title: String!
-  notes: String
-  startsAt: DateTime!
-  endsAt: DateTime!
-  allDay: Boolean!
-  timezone: String!
-  bookingId: Float
-  quoteId: Float
-  location: String
-  recurrenceRule: String
-  status: EventStatus!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
-"""Type of supplier calendar event"""
-enum EventType {
-  BOOKING
-  TENTATIVE
-  BLOCKED
-  EXTERNAL
-  RECURRING
-}
-
-"""Lifecycle status of a calendar event"""
-enum EventStatus {
-  ACTIVE
-  CANCELLED
-  COMPLETED
-}
-
-type Message {
-  messageId: Float!
-  conversationId: Float!
-  senderType: SenderType!
-  senderUserId: Float
-  content: String!
-  messageType: MessageType!
-  filtered: Boolean!
-  filteredReason: String
-  readAt: DateTime
-  createdAt: DateTime!
-}
-
-"""Who sent a message in a customer↔supplier conversation"""
-enum SenderType {
-  CUSTOMER
-  SUPPLIER
-  AI
-  SYSTEM
-}
-
-"""Format of a chat message"""
-enum MessageType {
-  TEXT
-  IMAGE
-  QUOTE_REFERENCE
-  BOOKING_REFERENCE
-  SYSTEM_NOTICE
-}
-
-type Conversation {
-  conversationId: Float!
-  requestId: Float!
-  customerId: Float!
-  supplierId: Float!
-  status: ConversationStatus!
-  lastMessageAt: DateTime
-  contactShareWarnings: Float!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  messages: [Message!]
-  supplier: Supplier
-  customer: Customer
-  request: Request
-}
-
-"""Lifecycle status of a customer↔supplier conversation"""
-enum ConversationStatus {
-  ACTIVE
-  ARCHIVED
-  BLOCKED
-}
-
-type MessageEvent {
-  eventType: String!
-  conversationId: Int!
-  messageId: Int!
-  senderUserId: Int!
-}
-
-type Favorite {
-  favoriteId: Int!
-  customerId: Int!
-  supplierId: Int!
-  notes: String
-  createdAt: DateTime!
-  supplier: Supplier
-}
-
-type FavoriteToggleResult {
-  favoriteId: Int
-  customerId: Int!
-  supplierId: Int!
-  wasAdded: Boolean!
-}
-
-type AdminStats {
-  totalUsers: Int!
-  totalCustomers: Int!
-  totalSuppliers: Int!
-  totalBookings: Int!
-  mtdRevenue: String!
-  allTimeRevenue: String!
-  currency: String!
-}
-
-type TopSupplierRow {
+type AdminTopSupplier {
   supplierId: Int!
   companyName: String!
-  city: String
-  bookingCount: Int!
-  quoteCount: Int!
-  grossRevenue: String!
+  provinceName: String
+  contacts: Int!
   rating: String
 }
 
-type AiUsageBreakdownRow {
-  modelName: String!
-  requests: Int!
-  inputTokens: Int!
-  outputTokens: Int!
-  costUsd: String!
+type AdminOverview {
+  days: Int!
+  totals: AdminTotals!
+  daily: [AdminDailyRow!]!
+  contactsByChannel: [AdminCount!]!
+  suppliersByProvince: [AdminCount!]!
+  topSuppliers: [AdminTopSupplier!]!
 }
 
-type SupplierPromotionResult {
+type AdminSupplierRow {
   supplierId: Int!
-  promotionTier: PromotionTier!
-  promotionStartDate: DateTime
-  promotionEndDate: DateTime
+  companyName: String!
+  tagline: String
+  description: String
+  city: String
+  province: String
+  provinceName: String
+  categories: [String!]!
+  businessPhone: String
+  whatsappNumber: String
+  businessEmail: String
+  websiteUrl: String
+  ownerName: String!
+  ownerEmail: String!
+  source: String!
+  verifiedAt: DateTime
+  preferredAt: DateTime
+  preferredUntil: DateTime
+  preferred: Boolean!
+  rating: String
+  reviewCount: Int!
+  contactsLast30Days: Int!
+  createdAt: DateTime!
 }
 
-type RevenueByDayRow {
-  day: String!
-  platformFee: String!
-  bookings: Int!
+type AdminSupplierPage {
+  rows: [AdminSupplierRow!]!
+  total: Int!
+}
+
+type ReviewView {
+  reviewId: Int!
+  supplierId: Int!
+  rating: Int!
+  text: String
+  reviewerName: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  isMine: Boolean!
+}
+
+type ReviewPrompt {
+  supplierId: Int!
+  companyName: String!
+  city: String
+  contactedAt: DateTime!
+}
+
+type SavedContact {
+  supplierId: Int!
+  companyName: String!
+  city: String
+  province: String
+  businessPhone: String
+  whatsappNumber: String
+  businessEmail: String
+  websiteUrl: String
+  lastContactedAt: DateTime!
+  lastChannel: String!
+  contactCount: Int!
+  myRating: Int
+}
+
+type ChatTurnReplyModel {
+  messageId: String!
+  content: String!
+  model: String!
+  createdAt: DateTime!
+  providersJson: String
+  service: String
+  zoneName: String
+}
+
+type ChatTurnResult {
+  conversationId: String!
+  title: String!
+  replies: [ChatTurnReplyModel!]!
 }
 
 type LoginOutput {
@@ -574,63 +287,26 @@ type PasswordResetResult {
 }
 
 type Query {
-  user(where: UserWhereInput!): User!
-  search(query: String, skip: Float, take: Float): Search!
-  postsBySupplier(where: PostWhereInput, whereUnique: PostWhereUniqueInput): [Post!]!
-  post(where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
+  provinces(country: String = "CR"): [Province!]!
+  resolveProvince(location: String, lat: Float, lng: Float): ResolvedProvince
+  me: User!
   login(data: LoginUserInput!): LoginOutput!
   refreshUser(data: String!): LoginOutput!
-  supplier(where: SupplierWhereInput!): Supplier!
-  suppliers: [Supplier!]!
-  searchSuppliers(data: SupplierSearchInput!): [Supplier!]!
-  supplierDashboardStats(supplierId: Int!): SupplierDashboardStats!
-  category(where: CategoryWhereInput!): Category!
-  categories: [Category!]!
-  pricing(where: PricingWhereInput!): Pricing!
-  subscription(where: SubscriptionWhereInput!): PlanSubscription!
+  supplier(supplierId: Int!): Supplier!
+  suppliers(province: String, limit: Int): [Supplier!]!
+  searchSuppliers(data: SupplierSearchInput!): SupplierSearchResult!
+  mySupplier: Supplier!
+  mySupplierStats: SupplierStats!
+  suggestMySupplierSkills: [String!]!
   aiConversations(deviceId: String): [AiConversation!]!
   aiConversation(conversationId: String!, deviceId: String): AiConversation!
   aiMessages(conversationId: String!, deviceId: String): [AiMessage!]!
-  request(where: RequestWhereInput!): Request!
-  requestsByCustomer(customerId: Int!, status: RequestStatus): [Request!]!
-  requestsBySupplier(supplierId: Int!, status: RequestStatus): [Request!]!
-  openRequestsForSupplier(supplierId: Int!, limit: Int = 50): [Request!]!
-  notificationsByUser(userId: Int!, unreadOnly: Boolean = false, limit: Int = 50): [Notification!]!
-  unreadNotificationCount(userId: Int!): Int!
-  quote(where: QuoteWhereInput!): Quote!
-  quotesByRequest(requestId: Int!, status: QuoteStatus): [Quote!]!
-  quotesBySupplier(supplierId: Int!, status: QuoteStatus): [Quote!]!
-  booking(where: BookingWhereInput!): Booking!
-  bookingsByCustomer(customerId: Int!, status: BookingStatus): [Booking!]!
-  bookingsBySupplier(supplierId: Int!, status: BookingStatus): [Booking!]!
-  calendarEvent(where: CalendarEventWhereInput!): CalendarEvent!
-  calendarEventsBySupplier(supplierId: Int!, from: DateTime, to: DateTime): [CalendarEvent!]!
-  conversation(where: ConversationWhereInput!): Conversation!
-  conversationsByCustomer(customerId: Int!, viewerUserId: Int!, status: ConversationStatus): [Conversation!]!
-  conversationsBySupplier(supplierId: Int!, viewerUserId: Int!, status: ConversationStatus): [Conversation!]!
-  messagesByConversation(conversationId: Int!, limit: Int): [Message!]!
-  favoritesByCustomer(customerId: Int!): [Favorite!]!
-  customer(where: CustomerWhereInput!): Customer!
-  adminStats(adminUserId: Int!): AdminStats!
-  topSuppliers(adminUserId: Int!, limit: Int = 10): [TopSupplierRow!]!
-  aiUsageBreakdown(adminUserId: Int!, daysBack: Int = 30): [AiUsageBreakdownRow!]!
-  revenueByDay(adminUserId: Int!, daysBack: Int = 30): [RevenueByDayRow!]!
-  servicesBySupplier(supplierId: Int!, includeInactive: Boolean): [Service!]!
-}
-
-input UserWhereInput {
-  userId: Int
-  email: String
-}
-
-input PostWhereInput {
-  postId: Int
-  supplierId: Int
-  categoryId: Int
-}
-
-input PostWhereUniqueInput {
-  postId: Int!
+  categories: [Category!]!
+  adminOverview(days: Int = 30): AdminOverview!
+  adminSuppliers(filter: AdminSupplierFilter): AdminSupplierPage!
+  supplierReviews(supplierId: Int!): [ReviewView!]!
+  mySavedContacts: [SavedContact!]!
+  reviewPrompts: [ReviewPrompt!]!
 }
 
 input LoginUserInput {
@@ -638,154 +314,60 @@ input LoginUserInput {
   password: String!
 }
 
-input SupplierWhereInput {
-  supplierId: Int
-}
-
 input SupplierSearchInput {
-  serviceQuery: String
-  city: String
-  guestCount: Int
-  categoryId: Int
+  query: String
+  location: String
+  province: String
+  lat: Float
+  lng: Float
+  categorySlug: String
   limit: Int
 }
 
-input CategoryWhereInput {
-  categoryId: Int
+input AdminSupplierFilter {
+  search: String
+  status: AdminSupplierStatus = ALL
+  province: String
+  limit: Int = 25
+  offset: Int = 0
 }
 
-input PricingWhereInput {
-  planId: Int
-}
-
-input SubscriptionWhereInput {
-  subscriptionId: Int
-}
-
-input RequestWhereInput {
-  requestId: Int
-}
-
-input QuoteWhereInput {
-  quoteId: Int
-}
-
-input BookingWhereInput {
-  bookingId: Int
-}
-
-input CalendarEventWhereInput {
-  calendarEventId: Int
-}
-
-input ConversationWhereInput {
-  conversationId: Int
-}
-
-input CustomerWhereInput {
-  customerId: Int
-  userId: Int
+enum AdminSupplierStatus {
+  ALL
+  UNVERIFIED
+  VERIFIED
+  PREFERRED
 }
 
 type Mutation {
-  createUser(data: UserCreateInput!): User!
-  updateUser(data: UserUpdateInput!): User!
-  createPost(data: PostCreateInput!): Post!
-  updatePost(data: PostUpdateInput!, where: PostWhereInput, whereUnique: PostWhereUniqueInput): Post!
-  deletePost(whereUnique: PostWhereUniqueInput!): Boolean!
+  updateMe(data: UserUpdateInput!): User!
   signup(data: SignUpInput!): User!
   socialLogin(data: SocialLoginInput!): LoginOutput!
   requestPasswordReset(data: RequestPasswordResetInput!): PasswordResetResult!
   resetPassword(data: ResetPasswordInput!): PasswordResetResult!
   completeOnboarding(data: CompleteOnboardingInput!): LoginOutput!
-  createSupplier(data: SupplierCreateInput!): Supplier!
-  updateSupplier(data: SupplierUpdateInput!): Supplier!
-  setSupplierCategories(data: SupplierCategoriesInput!): Boolean!
-  deleteSupplierMedia(data: SupplierMediaDeleteInput!): Boolean!
-  reorderSupplierMedia(data: SupplierMediaReorderInput!): Boolean!
-  createCategory(data: CategoryCreateInput!): Category!
-  createPricing(data: PricingCreateInput!): Pricing!
-  createSubscription(data: SubscriptionCreateInput!): PlanSubscription!
-  aiComplete(data: AiCompletionInput!): AiCompletionResult!
-  createAiConversation(data: AiConversationCreateInput!): AiConversation!
-  updateAiConversation(data: AiConversationUpdateInput!, deviceId: String): AiConversation!
+  updateMySupplier(data: SupplierUpdateInput!): Supplier!
+  setMySupplierCategories(data: SupplierCategoriesInput!): Boolean!
+  setMySupplierSkills(skills: [String!]!): [String!]!
   deleteAiConversation(conversationId: String!, deviceId: String): Boolean!
-  sendAiMessage(data: AiMessageSendInput!, deviceId: String): SendAiMessageResult!
-  updateAiMessageProviders(data: AiMessageProvidersUpdateInput!, deviceId: String): AiMessage!
-  linkAiConversationToRequest(data: AiConversationLinkInput!, deviceId: String): AiConversation!
-  rollbackLastAiTurn(conversationId: String!, deviceId: String): Float!
-  mergeGuestAiConversations(deviceId: String!): Float!
-  createRequest(data: RequestCreateInput!): Request!
-  updateRequestStatus(data: RequestUpdateStatusInput!): Request!
-  closeRequest(data: RequestCloseInput!): Request!
-  markNotificationAsRead(data: NotificationMarkReadInput!): Notification!
-  markAllNotificationsAsRead(data: NotificationsMarkAllReadInput!): Int!
-  createQuote(data: QuoteCreateInput!): Quote!
-  withdrawQuote(data: QuoteWithdrawInput!): Quote!
-  acceptQuote(data: QuoteAcceptInput!): Booking!
-  markQuotesViewed(data: QuoteMarkViewedInput!): Float!
-  cancelBooking(data: BookingCancelInput!): Booking!
-  completeBooking(data: BookingCompleteInput!): Booking!
-  createCalendarEvent(data: CalendarEventCreateInput!): CalendarEvent!
-  updateCalendarEvent(data: CalendarEventUpdateInput!): CalendarEvent!
-  cancelCalendarEvent(data: CalendarEventCancelInput!): CalendarEvent!
-  createConversation(data: ConversationCreateInput!): Conversation!
-  sendMessage(data: MessageSendInput!): Message!
-  markMessagesAsRead(data: MarkMessagesReadInput!): Float!
-  archiveConversation(data: ConversationArchiveInput!): Conversation!
-  restoreConversation(data: ConversationRestoreInput!): Conversation!
-  toggleFavorite(data: FavoriteToggleInput!): FavoriteToggleResult!
-  updateCustomer(data: CustomerUpdateInput!): Customer!
-  setSupplierPromotion(data: SetSupplierPromotionInput!): SupplierPromotionResult!
-  createReview(data: ReviewCreateInput!): Review!
-  updateReview(data: ReviewUpdateInput!): Review!
-  deleteReview(data: ReviewDeleteInput!): Boolean!
-  createService(data: ServiceCreateInput!): Service!
-  updateService(data: ServiceUpdateInput!): Service!
-  deleteService(data: ServiceDeleteInput!): Boolean!
-}
-
-input UserCreateInput {
-  email: String!
-  password: String!
-  name: String!
-  phone: String!
-  country: String!
-  role: Role!
-  companyName: String!
-  profilePicture: String
-  subscription: SubscriptionCreateNestedInput!
-}
-
-input SubscriptionCreateNestedInput {
-  planId: Int!
-  startDate: DateTime!
-  endDate: DateTime!
-  status: String!
+  mergeGuestAiConversations(deviceId: String!): Int!
+  adminSetSupplierVerified(supplierId: Int!, verified: Boolean!): Boolean!
+  adminSetSupplierPreferred(data: AdminPreferredInput!): Boolean!
+  saveReview(data: ReviewInput!): ReviewView!
+  deleteReview(reviewId: Int!): Boolean!
+  saveMyService(data: ServiceInput!): Service!
+  deleteMyService(serviceId: Int!): Boolean!
+  logSupplierContact(data: ContactLogInput!): Boolean!
+  mergeGuestContacts(deviceId: String!): Int!
+  dismissReviewPrompt(supplierId: Int!): Boolean!
+  chatTurn(data: ChatTurnInput!): ChatTurnResult!
 }
 
 input UserUpdateInput {
-  userId: Int!
   name: String
   phone: String
-  country: String
+  language: Language
   profilePicture: String
-}
-
-input PostCreateInput {
-  title: String!
-  categoryId: Int!
-  supplierId: Int!
-  description: String!
-  price: Int!
-  mediaUrl: String!
-}
-
-input PostUpdateInput {
-  title: String
-  description: String
-  price: Int
-  mediaUrl: String
 }
 
 input SignUpInput {
@@ -793,9 +375,10 @@ input SignUpInput {
   name: String!
   password: String!
   phone: String!
-  country: String!
+  country: String = "CR"
   role: String
   companyName: String
+  province: String
   profilePicture: String
 }
 
@@ -818,336 +401,72 @@ input CompleteOnboardingInput {
   companyName: String
   phone: String
   country: String
-}
-
-input SupplierCreateInput {
-  companyName: String!
-  userId: Float
+  province: String
 }
 
 input SupplierUpdateInput {
-  supplierId: Int!
   companyName: String
-  slug: String
   tagline: String
   description: String
   businessPhone: String
-  businessEmail: String
   businessPhoneAlt: String
+  businessEmail: String
   businessEmailAlt: String
   whatsappNumber: String
   websiteUrl: String
+  province: String
+  serviceProvinces: [String!]
   city: String
   address: String
-  minCapacity: Int
-  maxCapacity: Int
-  responseTimeMinutes: Int
 }
 
 input SupplierCategoriesInput {
-  supplierId: Int!
   categoryIds: [Int!]!
   primaryCategoryId: Int
 }
 
-input SupplierMediaDeleteInput {
-  mediaAssetId: Int!
+input AdminPreferredInput {
   supplierId: Int!
+  preferred: Boolean!
+  until: DateTime
 }
 
-input SupplierMediaReorderInput {
+input ReviewInput {
   supplierId: Int!
-  mediaAssetIds: [Int!]!
+  rating: Int!
+  text: String
 }
 
-input CategoryCreateInput {
-  categoryName: String!
+input ServiceInput {
+  serviceId: Int
+  name: String!
+  description: String
+  priceFrom: String
+  priceUnit: String
+  currency: String
 }
 
-input PricingCreateInput {
-  planName: String!
-  price: Float!
-  features: String!
-}
-
-input SubscriptionCreateInput {
-  userId: Float!
-  planId: Float!
-  startDate: DateTime!
-  endDate: DateTime!
-  status: String!
-}
-
-input AiCompletionInput {
-  model: String!
-  messages: [AiChatMessageInput!]!
-  system: String
-  cachedSystem: String
-}
-
-input AiChatMessageInput {
-  role: String!
-  content: String!
-}
-
-input AiConversationCreateInput {
-  title: String!
-  model: String!
+input ContactLogInput {
+  supplierId: Int!
+  channel: ContactChannel!
+  source: String
   deviceId: String
 }
 
-input AiConversationUpdateInput {
-  conversationId: String!
-  title: String
-  model: String
+"""How a customer reached out to a supplier"""
+enum ContactChannel {
+  CHAT_CONTACT
+  PHONE
+  EMAIL
+  WHATSAPP
+  WEBSITE
 }
 
-input AiMessageSendInput {
-  conversationId: String!
-  content: String!
-  model: String
-  system: String
-  cachedSystem: String
-}
-
-input AiMessageProvidersUpdateInput {
-  conversationId: String!
-  messageId: String!
-  providersJson: String!
-}
-
-input AiConversationLinkInput {
-  conversationId: String!
-  requestId: Int!
-}
-
-input RequestCreateInput {
-  customerId: Int!
-  rawQuery: String!
-  categoryId: Int
-  city: String
-  serviceDate: DateTime
-  guestCount: Int
-  budgetMin: Float
-  budgetMax: Float
-  conversationTurns: Int
-  expiresAt: DateTime
-}
-
-input RequestUpdateStatusInput {
-  requestId: Int!
-  status: RequestStatus!
-}
-
-input RequestCloseInput {
-  requestId: Int!
-  reason: String
-}
-
-input NotificationMarkReadInput {
-  notificationId: Int!
-  userId: Int!
-}
-
-input NotificationsMarkAllReadInput {
-  userId: Int!
-}
-
-input QuoteCreateInput {
-  requestId: Int!
-  supplierId: Int!
-  totalPrice: Float!
-  currency: String
-  message: String
-  validUntil: DateTime!
-  items: [QuoteItemInput!]
-  offeredSlots: [QuoteSlotInput!]
-}
-
-input QuoteItemInput {
-  serviceId: Int
-  description: String!
-  quantity: Float!
-  unitPrice: Float!
-  total: Float!
-}
-
-input QuoteSlotInput {
-  startsAt: DateTime!
-  endsAt: DateTime!
-}
-
-input QuoteWithdrawInput {
-  quoteId: Int!
-}
-
-input QuoteAcceptInput {
-  quoteId: Int!
-  slotIndex: Int
-}
-
-input QuoteMarkViewedInput {
-  requestId: Int!
-}
-
-input BookingCancelInput {
-  bookingId: Int!
-  reason: String
-  cancelledBy: String
-}
-
-input BookingCompleteInput {
-  bookingId: Int!
-}
-
-input CalendarEventCreateInput {
-  supplierId: Int!
-  eventType: EventType
-  title: String!
-  notes: String
-  startsAt: DateTime!
-  endsAt: DateTime!
-  allDay: Boolean
-  timezone: String
-  location: String
-  recurrenceRule: String
-}
-
-input CalendarEventUpdateInput {
-  calendarEventId: Int!
-  title: String
-  notes: String
-  startsAt: DateTime
-  endsAt: DateTime
-  allDay: Boolean
-  location: String
-  status: EventStatus
-}
-
-input CalendarEventCancelInput {
-  calendarEventId: Int!
-}
-
-input ConversationCreateInput {
-  requestId: Int!
-  supplierId: Int!
-}
-
-input MessageSendInput {
-  conversationId: Int!
-  senderUserId: Int!
-  content: String!
-  messageType: MessageType
-}
-
-input MarkMessagesReadInput {
-  conversationId: Int!
-  viewerUserId: Int!
-}
-
-input ConversationArchiveInput {
-  conversationId: Int!
-  userId: Int!
-}
-
-input ConversationRestoreInput {
-  conversationId: Int!
-  userId: Int!
-}
-
-input FavoriteToggleInput {
-  customerId: Int!
-  supplierId: Int!
-  notes: String
-}
-
-input CustomerUpdateInput {
-  customerId: Int!
-  defaultCity: String
-  defaultAddress: String
-  marketingOptIn: Boolean
-}
-
-input SetSupplierPromotionInput {
-  adminUserId: Int!
-  supplierId: Int!
-  tier: PromotionTier!
-  startDate: DateTime
-  endDate: DateTime
-}
-
-input ReviewCreateInput {
-  bookingId: Int!
-  customerId: Int!
-  rating: Int!
-  text: String
-  ratingQuality: Int
-  ratingCommunication: Int
-  ratingValue: Int
-  ratingPunctuality: Int
-}
-
-input ReviewUpdateInput {
-  reviewId: Int!
-  customerId: Int!
-  rating: Int!
-  text: String
-  ratingQuality: Int
-  ratingCommunication: Int
-  ratingValue: Int
-  ratingPunctuality: Int
-}
-
-input ReviewDeleteInput {
-  reviewId: Int!
-  customerId: Int!
-}
-
-input ServiceCreateInput {
-  supplierId: Int!
-  categoryId: Int!
-  name: String!
-  description: String!
-  pricingModel: PricingModel
-  basePrice: String!
-  currency: String
-  minTotalPrice: String
-  maxTotalPrice: String
-  minUnits: Int
-  maxUnits: Int
-  unitLabel: String
-  active: Boolean
-}
-
-input ServiceUpdateInput {
-  serviceId: Int!
-  supplierId: Int!
-  categoryId: Int!
-  name: String!
-  description: String!
-  pricingModel: PricingModel
-  basePrice: String!
-  currency: String
-  minTotalPrice: String
-  maxTotalPrice: String
-  minUnits: Int
-  maxUnits: Int
-  unitLabel: String
-  active: Boolean
-}
-
-input ServiceDeleteInput {
-  serviceId: Int!
-  supplierId: Int!
-}
-
-type Subscription {
-  requestEventForCustomer(customerId: Int!): RequestEvent!
-  openRequestEventForSupplier(supplierId: Int!): RequestEvent!
-  notificationCreated(userId: Int!): Notification!
-  quoteEventForCustomer(customerId: Int!): QuoteEvent!
-  quoteEventForSupplier(supplierId: Int!): QuoteEvent!
-  bookingEventForCustomer(customerId: Int!): BookingEvent!
-  bookingEventForSupplier(supplierId: Int!): BookingEvent!
-  messageEventForConversation(conversationId: Int!): MessageEvent!
+input ChatTurnInput {
+  conversationId: String
+  message: String!
+  deviceId: String
+  province: String
+  lat: Float
+  lng: Float
 }

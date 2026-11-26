@@ -1,194 +1,131 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { BookingStatus, Prisma } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@prisma-datasource';
-import { NotificationService } from '../notification/notification.service';
-import { Review, ReviewSelect } from '../supplier/model';
-import { ReviewCreateInput, ReviewDeleteInput, ReviewUpdateInput } from './dto';
+import { ReviewInput } from './dto';
+import { ReviewView } from './model/review-view.model';
+
+const REVIEW_VIEW_SELECT = {
+  reviewId: true,
+  supplierId: true,
+  rating: true,
+  text: true,
+  createdAt: true,
+  updatedAt: true,
+  customerId: true,
+  customer: { select: { user: { select: { name: true } } } },
+} as const;
+
+type ReviewRow = Prisma.ReviewGetPayload<{ select: typeof REVIEW_VIEW_SELECT }>;
+
+/** "Andrea Rojas" → "Andrea R." */
+export function shortName(full: string | null | undefined): string {
+  const parts = (full ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'Cliente';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+}
 
 @Injectable()
 export class ReviewService {
-  constructor(
-    private readonly prismaService: PrismaService,
-    private readonly notificationService: NotificationService,
-  ) {}
+  constructor(private readonly prismaService: PrismaService) {}
 
-  private assertRatingsInRange(
-    ratings: Array<[string, number | undefined]>,
-  ): void {
-    for (const [label, value] of ratings) {
-      if (value != null && (value < 1 || value > 5)) {
-        throw new BadRequestException(`${label} must be between 1 and 5`);
-      }
-    }
+  private toView(row: ReviewRow, myCustomerId: number | null): ReviewView {
+    return {
+      reviewId: row.reviewId,
+      supplierId: row.supplierId,
+      rating: row.rating,
+      text: row.text ?? undefined,
+      reviewerName: shortName(row.customer.user.name),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      isMine: myCustomerId != null && row.customerId === myCustomerId,
+    };
   }
 
-  /**
-   * Recompute the supplier's denormalized `rating` / `reviewCount` from its
-   * visible reviews. Runs inside whatever transaction the caller opened so
-   * the aggregate never drifts from the review rows.
-   */
-  private async recomputeSupplierRating(
-    tx: Prisma.TransactionClient,
-    supplierId: number,
-  ): Promise<void> {
+  private async customerIdFor(userId: number | null): Promise<number | null> {
+    if (userId == null) return null;
+    const customer = await this.prismaService.customer.findUnique({
+      where: { userId },
+      select: { customerId: true },
+    });
+    return customer?.customerId ?? null;
+  }
+
+  /** Recompute the supplier's cached rating/reviewCount in the same transaction. */
+  private async recomputeSupplierRating(tx: Prisma.TransactionClient, supplierId: number): Promise<void> {
     const stats = await tx.review.aggregate({
-      where: { supplierId, hidden: false },
+      where: { supplierId },
       _avg: { rating: true },
       _count: { reviewId: true },
     });
     await tx.supplier.update({
       where: { supplierId },
-      data: {
-        rating: stats._avg.rating,
-        reviewCount: stats._count.reviewId,
-      },
+      data: { rating: stats._avg.rating, reviewCount: stats._count.reviewId },
     });
   }
 
-  /**
-   * Customer leaves a review on a completed booking. One review per booking
-   * (enforced both here and by the DB unique constraint).
-   */
-  public async create(
-    data: ReviewCreateInput,
-    { select }: ReviewSelect,
-  ): Promise<Review> {
-    const { bookingId, customerId, rating, text, ...subRatings } = data;
-
-    this.assertRatingsInRange([
-      ['rating', rating],
-      ['ratingQuality', subRatings.ratingQuality],
-      ['ratingCommunication', subRatings.ratingCommunication],
-      ['ratingValue', subRatings.ratingValue],
-      ['ratingPunctuality', subRatings.ratingPunctuality],
-    ]);
-
-    const booking = await this.prismaService.booking.findUnique({
-      where: { bookingId },
-      select: {
-        customerId: true,
-        supplierId: true,
-        status: true,
-        review: { select: { reviewId: true } },
-        supplier: { select: { userId: true, companyName: true } },
-        customer: { select: { user: { select: { name: true } } } },
-      },
+  public async listForSupplier(supplierId: number, userId: number | null, limit = 50): Promise<ReviewView[]> {
+    const myCustomerId = await this.customerIdFor(userId);
+    const rows = await this.prismaService.review.findMany({
+      where: { supplierId },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(Math.max(limit, 1), 100),
+      select: REVIEW_VIEW_SELECT,
     });
-    if (!booking) {
-      throw new NotFoundException(`Booking ${bookingId} not found`);
-    }
-    if (booking.customerId !== customerId) {
-      throw new BadRequestException('Only the customer on this booking can review it');
-    }
-    if (booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('Reviews can only be left on completed bookings');
-    }
-    if (booking.review) {
-      throw new ConflictException('This booking has already been reviewed');
+    return rows.map((r) => this.toView(r, myCustomerId));
+  }
+
+  /**
+   * Signed-in customer reviews a supplier (no booking needed). A second
+   * submit replaces the first — one review per customer per supplier.
+   */
+  public async upsert(userId: number, input: ReviewInput): Promise<ReviewView> {
+    const customerId = await this.customerIdFor(userId);
+    if (customerId == null) {
+      throw new BadRequestException('Only customer accounts can leave reviews');
     }
 
-    const review = await this.prismaService.$transaction(async (tx) => {
-      const created = await tx.review.create({
-        data: {
-          bookingId,
-          customerId,
-          supplierId: booking.supplierId,
-          rating,
-          text,
-          ...subRatings,
-        },
-        select,
+    const supplier = await this.prismaService.supplier.findFirst({
+      where: { supplierId: input.supplierId, deletedAt: null },
+      select: { userId: true },
+    });
+    if (!supplier) throw new NotFoundException('Supplier not found');
+    if (supplier.userId === userId) throw new BadRequestException("You can't review your own business");
+
+    const text = input.text?.trim() || null;
+    const row = await this.prismaService.$transaction(async (tx) => {
+      const saved = await tx.review.upsert({
+        where: { customerId_supplierId: { customerId, supplierId: input.supplierId } },
+        create: { customerId, supplierId: input.supplierId, rating: input.rating, text },
+        update: { rating: input.rating, text },
+        select: REVIEW_VIEW_SELECT,
       });
-      await this.recomputeSupplierRating(tx, booking.supplierId);
-      return created;
+      await this.recomputeSupplierRating(tx, input.supplierId);
+      return saved;
     });
 
-    // Best-effort: let the supplier know a review landed.
-    void this.notificationService
-      .emit({
-        userId: booking.supplier.userId,
-        template: 'REVIEW_RECEIVED',
-        subject: 'You received a new review',
-        body: `${booking.customer.user.name} left a ${rating}-star review on a completed booking.`,
-        entityType: 'Booking',
-        entityId: bookingId,
-      })
-      .catch(() => undefined);
+    // A review answers the "How did it go?" prompt for this supplier.
+    await this.prismaService.contactEvent.updateMany({
+      where: { customerId, supplierId: input.supplierId, reviewPromptDismissedAt: null },
+      data: { reviewPromptDismissedAt: new Date() },
+    });
 
-    return review;
+    return this.toView(row, customerId);
   }
 
-  /**
-   * Author edits their review. Full replace — the edit form sends every
-   * field, so omitted optional ratings/text are cleared.
-   */
-  public async update(
-    data: ReviewUpdateInput,
-    { select }: ReviewSelect,
-  ): Promise<Review> {
-    const { reviewId, customerId, rating, text, ...subRatings } = data;
-
-    this.assertRatingsInRange([
-      ['rating', rating],
-      ['ratingQuality', subRatings.ratingQuality],
-      ['ratingCommunication', subRatings.ratingCommunication],
-      ['ratingValue', subRatings.ratingValue],
-      ['ratingPunctuality', subRatings.ratingPunctuality],
-    ]);
-
+  public async remove(userId: number, reviewId: number): Promise<boolean> {
+    const customerId = await this.customerIdFor(userId);
     const existing = await this.prismaService.review.findUnique({
       where: { reviewId },
       select: { customerId: true, supplierId: true },
     });
-    if (!existing) {
-      throw new NotFoundException(`Review ${reviewId} not found`);
-    }
-    if (existing.customerId !== customerId) {
-      throw new BadRequestException('Only the author can edit this review');
-    }
-
-    return await this.prismaService.$transaction(async (tx) => {
-      const updated = await tx.review.update({
-        where: { reviewId },
-        data: {
-          rating,
-          text: text ?? null,
-          ratingQuality: subRatings.ratingQuality ?? null,
-          ratingCommunication: subRatings.ratingCommunication ?? null,
-          ratingValue: subRatings.ratingValue ?? null,
-          ratingPunctuality: subRatings.ratingPunctuality ?? null,
-        },
-        select,
-      });
-      await this.recomputeSupplierRating(tx, existing.supplierId);
-      return updated;
-    });
-  }
-
-  /** Author removes their review. Returns true on success. */
-  public async delete({ reviewId, customerId }: ReviewDeleteInput): Promise<boolean> {
-    const existing = await this.prismaService.review.findUnique({
-      where: { reviewId },
-      select: { customerId: true, supplierId: true },
-    });
-    if (!existing) {
-      throw new NotFoundException(`Review ${reviewId} not found`);
-    }
-    if (existing.customerId !== customerId) {
-      throw new BadRequestException('Only the author can delete this review');
-    }
+    if (!existing || existing.customerId !== customerId) throw new NotFoundException('Review not found');
 
     await this.prismaService.$transaction(async (tx) => {
       await tx.review.delete({ where: { reviewId } });
       await this.recomputeSupplierRating(tx, existing.supplierId);
     });
-
     return true;
   }
 }

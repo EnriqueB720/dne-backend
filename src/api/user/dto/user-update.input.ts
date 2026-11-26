@@ -1,22 +1,26 @@
-import { Field, InputType, Int } from '@nestjs/graphql';
+import { Field, InputType } from '@nestjs/graphql';
+import { Language } from '@prisma/client';
+import { IsOptional, MaxLength, MinLength } from 'class-validator';
 
 /**
- * Editable fields on the user's own profile. Identity (email) is excluded —
- * email changes need verification and should land in a separate flow.
+ * Editable fields on the signed-in user's own account. Email is excluded —
+ * changing it needs verification and belongs in a separate flow.
  */
 @InputType()
 export class UserUpdateInput {
-  @Field(() => Int)
-  userId: number;
-
+  @IsOptional()
+  @MinLength(2)
+  @MaxLength(100)
   @Field({ nullable: true })
   name?: string;
 
+  @IsOptional()
+  @MaxLength(30)
   @Field({ nullable: true })
   phone?: string;
 
-  @Field({ nullable: true })
-  country?: string;
+  @Field(() => Language, { nullable: true })
+  language?: Language;
 
   @Field({ nullable: true })
   profilePicture?: string;

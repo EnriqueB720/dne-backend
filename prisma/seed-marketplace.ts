@@ -1,33 +1,27 @@
 /**
- * Populates the marketplace with a broad, realistic set of suppliers across
- * many categories and Costa Rican cities — so AI search has real DB inventory
- * to match against instead of falling back to AI-invented providers.
+ * LOCAL / DEMO ONLY — never run against production. Creates ~16 demo
+ * suppliers across Costa Rica so the chat has inventory to match.
+ * Categories come from the migrations; this only looks them up by slug.
  *
- * Idempotent: every write is an upsert / find-or-create, so it's safe to
- * re-run as many times as you like.
- *
- * Run:  cd dne-backend && npx ts-node prisma/seed-marketplace.ts
- *   (or, after wiring the script below) npm run prisma:seed:marketplace
- *
+ * Idempotent (find-or-create). Run: npm run prisma:seed
  * Login for every seeded supplier: <email> / test1234
  */
-import { PrismaClient, PricingModel, Role } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { GeoService } from '../src/shared/geo/geo.service';
+
+const geo = new GeoService();
+
+/** Legacy pricing labels kept so the data below reads as before; mapped to price_unit. */
+const PricingModel = { FLAT: 'FLAT', PER_PERSON: 'PER_PERSON', PER_HOUR: 'PER_HOUR', PER_DAY: 'PER_DAY', CUSTOM: 'CUSTOM' } as const;
+type PricingModel = (typeof PricingModel)[keyof typeof PricingModel];
+const PRICE_UNIT: Record<PricingModel, string | null> = { FLAT: null, CUSTOM: null, PER_PERSON: 'persona', PER_HOUR: 'hora', PER_DAY: 'día' };
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 const PASSWORD = 'test1234';
 
 // ── Category catalog ────────────────────────────────────────────────────────
-const CATEGORY_DEFS = [
-  { slug: 'catering', categoryName: 'Catering', nameEs: 'Catering', nameEn: 'Catering' },
-  { slug: 'photography', categoryName: 'Photography', nameEs: 'Fotografía', nameEn: 'Photography' },
-  { slug: 'music-dj', categoryName: 'Music & DJ', nameEs: 'Música y DJ', nameEn: 'Music & DJ' },
-  { slug: 'cleaning', categoryName: 'Cleaning', nameEs: 'Limpieza', nameEn: 'Cleaning' },
-  { slug: 'ac-repair', categoryName: 'AC Repair', nameEs: 'Reparación de A/C', nameEn: 'AC Repair' },
-  { slug: 'bakery', categoryName: 'Bakery & Cakes', nameEs: 'Pastelería', nameEn: 'Bakery & Cakes' },
-  { slug: 'decor', categoryName: 'Event Decor', nameEs: 'Decoración de Eventos', nameEn: 'Event Decor' },
-  { slug: 'moving', categoryName: 'Moving & Logistics', nameEs: 'Mudanzas', nameEn: 'Moving & Logistics' },
-];
+const CATEGORY_SLUGS = ['catering', 'photography', 'music-dj', 'cleaning', 'ac-repair', 'bakery', 'decor', 'moving'];
 
 // ── Supplier inventory ──────────────────────────────────────────────────────
 // `serviceAreas` are the cities the supplier will travel to — keep them honest
@@ -570,14 +564,8 @@ async function main() {
 
   // ─── Categories ───────────────────────────────────────────────────────────
   const categoryIdBySlug: Record<string, number> = {};
-  for (const c of CATEGORY_DEFS) {
-    const existing = await prisma.category.findUnique({ where: { slug: c.slug } });
-    const cat =
-      existing ??
-      (await prisma.category.create({
-        data: { ...c, active: true, displayOrder: 0 },
-      }));
-    categoryIdBySlug[c.slug] = cat.categoryId;
+  for (const c of await prisma.category.findMany({ where: { slug: { in: CATEGORY_SLUGS } } })) {
+    categoryIdBySlug[c.slug] = c.categoryId;
   }
 
   // ─── Suppliers ────────────────────────────────────────────────────────────
@@ -594,11 +582,8 @@ async function main() {
         name: s.ownerName,
         phone: s.phone,
         country: 'CR',
-        role: Role.SUPPLIER,
         isCustomer: false,
         isSupplier: true,
-        firstName: s.ownerName.split(' ')[0],
-        lastName: s.ownerName.split(' ').slice(1).join(' '),
       },
     });
 
@@ -612,21 +597,18 @@ async function main() {
         data: {
           userId: owner.userId,
           companyName: s.companyName,
-          slug: s.slug,
           tagline: s.tagline,
           description: s.description,
           city: s.city,
+          province: geo.fromText(s.city),
+          serviceProvinces: geo.normalizeServiceProvinces(geo.fromText(s.city), geo.provincesFromPlaces(s.serviceAreas)),
           businessEmail: s.email,
           businessPhone: s.phone,
           whatsappNumber: s.phone,
           websiteUrl: s.websiteUrl ?? null,
-          minCapacity: s.minCapacity ?? null,
-          maxCapacity: s.maxCapacity ?? null,
-          rating: s.rating,
-          reviewCount: s.reviewCount,
-          responseTimeMinutes: s.responseTimeMinutes,
-          verified: s.verified,
-          premium: s.premium,
+          // rating/reviewCount stay empty: they are a cache of real reviews.
+          verifiedAt: s.verified ? new Date() : null,
+          claimedAt: new Date(),
         },
       }));
 
@@ -654,21 +636,8 @@ async function main() {
       });
     }
 
-    // Service areas
-    for (const city of s.serviceAreas) {
-      await prisma.supplierServiceArea.upsert({
-        where: {
-          supplierId_city: { supplierId: supplier.supplierId, city },
-        },
-        update: {},
-        create: { supplierId: supplier.supplierId, city, radiusKm: 30 },
-      });
-    }
-
     // Services
     for (const svc of s.services) {
-      const categoryId = categoryIdBySlug[svc.categorySlug];
-      if (categoryId == null) continue;
       const existingService = await prisma.service.findFirst({
         where: { supplierId: supplier.supplierId, name: svc.name },
       });
@@ -676,17 +645,11 @@ async function main() {
         await prisma.service.create({
           data: {
             supplierId: supplier.supplierId,
-            categoryId,
             name: svc.name,
             description: svc.description,
-            pricingModel: svc.pricingModel,
-            basePrice: svc.basePrice,
+            priceFrom: svc.basePrice,
+            priceUnit: PRICE_UNIT[svc.pricingModel] ?? svc.unitLabel ?? null,
             currency: 'CRC',
-            minUnits: svc.minUnits ?? null,
-            maxUnits: svc.maxUnits ?? null,
-            unitLabel: svc.unitLabel ?? null,
-            tags: [],
-            inclusions: [],
           },
         });
       }
@@ -697,7 +660,6 @@ async function main() {
   console.log('Marketplace seed complete.');
   console.log(`  suppliers created: ${created}`);
   console.log(`  suppliers already existed (skipped): ${skipped}`);
-  console.log(`  categories ensured: ${CATEGORY_DEFS.length}`);
   console.log(`  login password for all: ${PASSWORD}`);
   console.log('────────────────────────────────────────────────────────\n');
 }

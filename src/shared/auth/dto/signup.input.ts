@@ -8,7 +8,7 @@ export class SignUpInput {
   @Field()
   email: string;
 
-  @MinLength(4)
+  @MinLength(2)
   @MaxLength(100)
   @Field()
   name: string;
@@ -20,8 +20,9 @@ export class SignUpInput {
   @Field()
   phone: string;
 
-  @Field()
-  country: string;
+  @IsOptional()
+  @Field({ nullable: true, defaultValue: 'CR' })
+  country?: string;
 
   /** 'CUSTOMER' or 'SUPPLIER'. Defaults to 'CUSTOMER' if omitted. */
   @IsOptional()
@@ -33,6 +34,11 @@ export class SignUpInput {
   @IsOptional()
   @Field({ nullable: true })
   companyName?: string;
+
+  /** Supplier only: ISO 3166-2 province, e.g. "CR-H". */
+  @IsOptional()
+  @Field({ nullable: true })
+  province?: string;
 
   @IsOptional()
   @Field({ nullable: true })
